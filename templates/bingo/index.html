@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complete Amharic Bingo Game - Integrated</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Socket.io Library ማያያዣ -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif; text-align: center; background-color: #1e1b4b;
@@ -138,7 +136,7 @@
         ▶ ጨዋታውን አስጀምር
     </button>
 
-    <button id="bingoBtn" onclick="checkBingoWin(false)" style="width: 100%; background: #eab308; color: black; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px;">
+    <button id="bingoBtn" onclick="checkBingoWin(false)" style="width: 100%; background: #eab308; color: black; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer;">
         🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
     </button>
 
@@ -171,7 +169,6 @@
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) { tg.ready(); tg.expand(); }
 
-    const API_SERVER_URL = "http://localhost:5000"; // የሰርቨርህ አድራሻ (ከፈለግህ በ IP ቀይረው)
     const telegramUser = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
     const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 1000000);
 
@@ -184,73 +181,82 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-    // --- Socket.io Connection ---
-    const socket = io(API_SERVER_URL);
+    // --- Native WebSocket Connection (Render) ---
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//bingo-app-1-91no.onrender.com/ws/bingo/`);
 
-    socket.on('connect', () => {
+    socket.onopen = () => {
         document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
         document.getElementById('timerBox').style.backgroundColor = '#4338ca';
 
         // ለሰርቨሩ ምዝገባ መላክ
-        socket.emit('register_player', {
+        socket.send(JSON.stringify({
+            action: 'register_player',
             userId: userId,
             firstName: telegramUser ? telegramUser.first_name : "ተጫዋች",
             phone: document.getElementById('userPhone').value
-        });
-    });
+        }));
+    };
 
-    // የተጫዋቾች ብዛት ሲቀያየር
-    socket.on('update_player_count', (count) => {
-        document.getElementById('timerBox').innerText = `ተጫዋቾች፡ ${count} | ጨዋታውን ለመጀመር ይዘጋጁ`;
-    });
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
-    // ጨዋታው ሲጀመር
-    socket.on('game_started', () => {
-        isGameEnded = false;
-        calledNumbersList = [];
-        document.getElementById('timerBox').innerText = "ጨዋታው ተጀምሯል!";
-        document.getElementById('timerBox').style.backgroundColor = '#22c55e';
-        document.getElementById('controlsDiv').style.display = 'none';
-        document.getElementById('stakeSelect').disabled = true;
-        document.getElementById('startGameBtn').style.display = 'none';
-        
-        // የካርቴላ ክፍያ መቀነስ
-        playerBalance -= selectedStake;
-        adminVault += (selectedStake * COMMISSION_RATE);
-        updateUI();
-    });
-
-    // ሰርቨሩ ቁጥር ሲጠራ ለሁሉም በአንድ ጊዜ ይደርሳል
-    socket.on('number_called', (data) => {
-        if (isGameEnded) return;
-
-        let num = data.number;
-        calledNumbersList = data.history;
-
-        // ያለፈውን active ቁጥር ወደ called መቀየር
-        let activeElems = document.querySelectorAll('.board-num.active');
-        activeElems.forEach(el => {
-            el.classList.remove('active');
-            el.classList.add('called');
-        });
-
-        // አዲሱን ቁጥር ማብራት
-        let currentElem = document.getElementById(`mb-${num}`);
-        if (currentElem) {
-            currentElem.classList.add('active');
+        // የተጫዋቾች ብዛት ሲቀያየር
+        if (data.type === 'update_player_count') {
+            document.getElementById('timerBox').innerText = `ተጫዋቾች፡ ${data.count} | ጨዋታውን ለመጀመር ይዘጋጁ`;
         }
 
-        playNumberAudio(num); 
-        autoMarkNumber(num);
-        checkBingoWin(true);
-    });
+        // ጨዋታው ሲጀመር
+        if (data.type === 'game_started') {
+            isGameEnded = false;
+            calledNumbersList = [];
+            document.getElementById('timerBox').innerText = "ጨዋታው ተጀምሯል!";
+            document.getElementById('timerBox').style.backgroundColor = '#22c55e';
+            document.getElementById('controlsDiv').style.display = 'none';
+            document.getElementById('stakeSelect').disabled = true;
+            document.getElementById('startGameBtn').style.display = 'none';
+            
+            playerBalance -= selectedStake;
+            adminVault += (selectedStake * COMMISSION_RATE);
+            updateUI();
+        }
+
+        // ሰርቨሩ ቁጥር ሲጠራ
+        if (data.type === 'number_called') {
+            if (isGameEnded) return;
+
+            let num = data.number;
+            calledNumbersList = data.history || [];
+
+            let activeElems = document.querySelectorAll('.board-num.active');
+            activeElems.forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('called');
+            });
+
+            let currentElem = document.getElementById(`mb-${num}`);
+            if (currentElem) {
+                currentElem.classList.add('active');
+            }
+
+            playNumberAudio(num); 
+            autoMarkNumber(num);
+            checkBingoWin(true);
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+        document.getElementById('timerBox').innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም!";
+        document.getElementById('timerBox').style.backgroundColor = '#ef4444';
+    };
 
     function requestStartGame() {
         if (playerBalance < selectedStake) {
             alert(`ለካርቴላ መግዣ በቂ ሂሳብ የለዎትም! (${selectedStake} ETB ያስፈልጋል)`);
             return;
         }
-        socket.emit('start_game');
+        socket.send(JSON.stringify({ action: 'start_game' }));
     }
 
     function updateStakeDisplay() {
