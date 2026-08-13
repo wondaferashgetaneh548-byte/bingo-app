@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>አሁን Bingo - Rooms</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #4d1e63 0%, #220932 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Top Navigation Bar */
+        .navbar {
+            background-color: rgba(0, 0, 0, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #ffc107;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: #e0e0e0;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #ffc107;
+        }
+
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-refresh {
+            background-color: #ffc107;
+            color: #111;
+            border: none;
+            padding: 6px 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-refresh:hover {
+            background-color: #e0a800;
+        }
+
+        .wallet-badge {
+            background-color: #ffc107;
+            color: #111;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* Table Header */
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 2fr 1.5fr;
+            background: rgba(20, 10, 35, 0.7);
+            padding: 14px 20px;
+            border-radius: 10px 10px 0 0;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+
+        /* Room Item Row */
+        .room-row {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 2fr 1.5fr;
+            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+            margin-top: 10px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            align-items: center;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .stake-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stake-amount {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .bonus-tag {
+            background: #ffc107;
+            color: #111;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        .status-playing {
+            color: #ff3b30;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .status-none {
+            color: #ccc;
+        }
+
+        .win-amount {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .btn-join {
+            background: linear-gradient(180deg, #ffdb4d 0%, #ffb300 100%);
+            color: #111;
+            border: none;
+            padding: 8px 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-join:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="logo">
+            ⏱️ አሁን BINGO
+        </div>
+        <ul class="nav-links">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Leaderboard</a></li>
+            <li><a href="#">How To Play</a></li>
+            <li><a href="#">Referral Income</a></li>
+        </ul>
+        <div class="user-actions">
+            <button class="btn-refresh" onclick="location.reload()">Refresh</button>
+            <div class="wallet-badge">
+                👛 ETB {{ balance|default:"100.00" }}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div class="container">
+        <!-- Table Header -->
+        <div class="table-header">
+            <div>Stake</div>
+            <div>Active</div>
+            <div>Possible Win</div>
+            <div>Join</div>
+        </div>
+
+        <!-- Room 1: 10 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">10birr</span>
+                <span class="bonus-tag">🎁 0 (+100 ETB)</span>
+            </div>
+            <div class="status-playing">Playing</div>
+            <div class="win-amount">🪙 338 Birr</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=10 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+        <!-- Room 2: 20 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">20birr</span>
+                <span class="bonus-tag">🎁 0 (+100 ETB)</span>
+            </div>
+            <div class="status-none">None</div>
+            <div class="win-amount">🪙 -</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=20 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+        <!-- Room 3: 30 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">30birr</span>
+            </div>
+            <div class="status-none">None</div>
+            <div class="win-amount">🪙 -</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=30 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+        <!-- Room 4: 50 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">50birr</span>
+            </div>
+            <div class="status-none">None</div>
+            <div class="win-amount">🪙 -</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=50 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+        <!-- Room 5: 80 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">80birr</span>
+            </div>
+            <div class="status-none">None</div>
+            <div class="win-amount">🪙 -</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=80 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+        <!-- Room 6: 100 Birr -->
+        <div class="room-row">
+            <div class="stake-info">
+                <span class="stake-amount">100birr</span>
+                <span class="bonus-tag">🎁 1 (+200 ETB)</span>
+            </div>
+            <div class="status-playing" style="color: #ff3b30;">0:00</div>
+            <div class="win-amount">🪙 162 Birr</div>
+            <div>
+                <a href="{% url 'bingo:room_detail' stake=100 %}" class="btn-join">Join »</a>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
