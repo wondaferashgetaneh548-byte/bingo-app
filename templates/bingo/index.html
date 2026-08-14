@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Amharic Bingo Game - Auto Start</title>
+    <title>Amharic Bingo Game - Fixed Auto Highlight</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -41,16 +41,25 @@
             flex: 1; height: 20px; background: #312e81; color: #a5b4fc; font-size: 10px;
             display: flex; align-items: center; justify-content: center; border-radius: 3px; font-weight: bold;
         }
-        .board-num.called { background: #ef4444; color: white; }
-        .board-num.active { background: #10b981; color: white; }
+        .board-num.called { background: #ef4444 !important; color: white !important; }
+        .board-num.active { background: #10b981 !important; color: white !important; font-weight: bold; }
 
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px 0; }
         .cell {
             aspect-ratio: 1; background: #e0e7ff; color: #1e1b4b; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 18px; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s ease;
         }
         .cell.header { background-color: #4338ca; color: white; font-size: 20px; cursor: default; }
-        .cell.marked { background: #2563eb; color: white; }
+        
+        /* ⚡ በካርቴላው ላይ የወጣው ቁጥር በግልጽ እንዲበራ የሚደረግበት Style */
+        .cell.marked { 
+            background: #ef4444 !important; 
+            color: white !important; 
+            font-weight: bold;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+        }
         .cell.free { background: #10b981; color: white; font-size: 14px; }
 
         .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
@@ -184,7 +193,6 @@
     socket.onopen = () => {
         document.getElementById('timerBox').innerText = "ከሰርቨር ጋር ተገናኝቷል!";
         document.getElementById('timerBox').style.backgroundColor = '#4338ca';
-        // ገጹ እንደተከፈተ በራስ-ሰር 45 ሰከንድ መቁጠር ይጀምራል
         startSelectionCountdown(45);
     };
 
@@ -198,24 +206,28 @@
         if (data.action === 'new_number') {
             if (isGameEnded || isSelectionPhase) return;
 
-            let num = data.number;
+            let num = parseInt(data.number);
             if (!calledNumbersList.includes(num)) {
                 calledNumbersList.push(num);
             }
 
+            // 1. Master Board ላይ የቀደሙትን ቀይ ማድረግ
             let activeElems = document.querySelectorAll('.board-num.active');
             activeElems.forEach(el => {
                 el.classList.remove('active');
                 el.classList.add('called');
             });
 
+            // 2. Master Board ላይ አዲሱን አረንጓዴ ማድረግ
             let currentElem = document.getElementById(`mb-${num}`);
             if (currentElem) {
                 currentElem.classList.add('active');
             }
 
-            playNumberAudio(num); 
+            // 3. ⚡ በካርቴላው ላይ ያለውን ቁጥር ወዲያውኑ ቀይ ማድረግ (ማብራት)
             autoMarkNumber(num);
+
+            playNumberAudio(num); 
             checkBingoWin(true);
         }
 
@@ -245,7 +257,6 @@
         document.getElementById('timerBox').style.backgroundColor = '#ef4444';
     };
 
-    // ⏱️ የ 45 ሰከንድ ካርቴላ መምረጫ ታይመር
     function startSelectionCountdown(duration) {
         isSelectionPhase = true;
         selectTimer = duration;
@@ -258,12 +269,10 @@
                 clearInterval(timerInterval);
                 isSelectionPhase = false;
                 
-                // 1. መምረጫውን መዝጋት
                 document.getElementById('controlsDiv').style.display = 'none';
-                document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው በራስ-ሰር ተጀምሯል...";
+                document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው ተጀምሯል...";
                 document.getElementById('timerBox').style.backgroundColor = '#22c55e';
 
-                // 2. ⚡ 45 ሰከንዱ እንዳለቀ በራስ-ሰር ጨዋታውን ማስጀመር
                 triggerAutoStartGame();
 
             } else {
@@ -274,7 +283,6 @@
         }, 1000);
     }
 
-    // ⚡ 45 ሰከንዱ አልቆ በራስ-ሰር ቁጥሮች እንዲጠሩ ለሰርቨር ጥያቄ መላክ
     function triggerAutoStartGame() {
         if (playerBalance < selectedStake) {
             alert(`ለካርቴላ መግዣ በቂ ሂሳብ የለዎትም! (${selectedStake} ETB ያስፈልጋል)`);
@@ -288,7 +296,6 @@
         adminVault += (selectedStake * COMMISSION_RATE);
         updateUI();
 
-        // ሰርቨሩ በየ 3 ሰከንዱ ቁጥሮችን መጥራት እንዲጀምር መልእክት መላክ
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ 
                 action: 'start_drawing_numbers' 
@@ -354,11 +361,15 @@
         updateStakeDisplay();
     });
 
+    // ⚡ የተስተካከለው autoMarkNumber Function
     function autoMarkNumber(calledNum) {
         const grid = document.getElementById('bingoGrid');
-        const cells = grid.querySelectorAll('.cell:not(.header):not(.free)');
+        if (!grid) return;
+
+        const cells = grid.querySelectorAll('.cell');
         cells.forEach(cell => {
-            if (cell.dataset.rawNumber == calledNum) {
+            const rawVal = cell.getAttribute('data-raw-number');
+            if (rawVal && parseInt(rawVal) === parseInt(calledNum)) {
                 cell.classList.add('marked');
             }
         });
@@ -411,7 +422,14 @@
                 } else {
                     let num = cardData[col][r];
                     cell.innerText = num;
-                    cell.dataset.rawNumber = num;
+                    // ⚡ attribute አቀማመጥ እዚህ ጋር አስተካክለነዋል
+                    cell.setAttribute('data-raw-number', num);
+                    
+                    // ከዚህ ቀደም የተጠራ ቁጥር ከሆነ ወዲያውኑ ቀይ ሆኖ እንዲታይ
+                    if (calledNumbersList.includes(parseInt(num))) {
+                        cell.classList.add('marked');
+                    }
+
                     cell.addEventListener('click', function() { 
                         if (!isSelectionPhase) this.classList.toggle('marked'); 
                     });
@@ -565,7 +583,7 @@
                 } else {
                     let num = cardData[col][r];
                     cell.innerText = num;
-                    if (calledNumbersList.includes(num)) {
+                    if (calledNumbersList.includes(parseInt(num))) {
                         cell.classList.add('marked-green'); 
                     }
                 }
