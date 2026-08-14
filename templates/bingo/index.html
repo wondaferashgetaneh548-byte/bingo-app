@@ -181,9 +181,9 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-   // ከ ws Protocol ጋር Render URL ን ማገናኘት
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${wsProtocol}//bingo-app-1-91no.onrender.com/ws/bingo/`);
+   // dynamic በሆነ መንገድ የ Render/Telegram Domainን ይወስዳል
+     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+     const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws/bingo/`);  
     socket.onopen = () => {
         document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
         document.getElementById('timerBox').style.backgroundColor = '#4338ca';
