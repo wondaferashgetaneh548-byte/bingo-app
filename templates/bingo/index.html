@@ -1,172 +1,4 @@
-<!DOCTYPE html>
-<html lang="am">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Amharic Bingo Game - Integrated</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif; text-align: center; background-color: #1e1b4b;
-            color: white; margin: 0; padding: 10px; padding-bottom: 70px;
-        }
-        .container {
-            max-width: 450px; margin: 0 auto; background: #312e81; padding: 15px;
-            border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative;
-        }
-        .wallet-box {
-            background: #4338ca; padding: 10px; border-radius: 8px; margin-bottom: 12px;
-            text-align: left; font-size: 14px;
-        }
-        .wallet-box input, .wallet-box select {
-            width: 95%; padding: 6px; margin: 4px 0; border-radius: 4px; border: none;
-        }
-        .wallet-box button {
-            padding: 6px 12px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;
-        }
-        #timerBox {
-            background-color: #ef4444; color: white; padding: 10px; border-radius: 8px;
-            font-weight: bold; margin-bottom: 15px; font-size: 16px;
-        }
-        .master-board { background: #1e1b4b; padding: 8px; border-radius: 8px; margin-bottom: 15px; }
-        .board-row { display: flex; align-items: center; gap: 2px; margin-bottom: 3px; }
-        .board-header {
-            width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; font-size: 12px; color: white;
-        }
-        .header-B { background: #5b21b6; } .header-I { background: #d97706; }
-        .header-N { background: #dc2626; } .header-G { background: #16a34a; } .header-O { background: #ea580c; }
-
-        .board-num {
-            flex: 1; height: 20px; background: #312e81; color: #a5b4fc; font-size: 10px;
-            display: flex; align-items: center; justify-content: center; border-radius: 3px; font-weight: bold;
-        }
-        .board-num.called { background: #ef4444; color: white; }
-        .board-num.active { background: #10b981; color: white; }
-
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px 0; }
-        .cell {
-            aspect-ratio: 1; background: #e0e7ff; color: #1e1b4b; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; font-size: 18px; border-radius: 6px; cursor: pointer;
-        }
-        .cell.header { background-color: #4338ca; color: white; font-size: 20px; cursor: default; }
-        .cell.marked { background: #2563eb; color: white; }
-        .cell.free { background: #10b981; color: white; font-size: 14px; }
-
-        .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-        button.nav-btn {
-            padding: 8px 16px; background: #4f46e5; color: white; border: none;
-            border-radius: 6px; cursor: pointer; font-weight: bold;
-        }
-        .admin-panel {
-            background: #881337; border: 2px solid #f43f5e; padding: 12px;
-            border-radius: 10px; margin-top: 20px; text-align: left;
-        }
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(88, 2, 2, 0.95); z-index: 2000; justify-content: center;
-            align-items: center; padding: 15px;
-        }
-        .modal-card {
-            background: #ab4141; padding: 20px; border-radius: 24px; width: 100%; max-width: 320px; color: white; text-align: center;
-        }
-        .modal-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; }
-        .modal-cell {
-            aspect-ratio: 1; background: white; color: #111; font-weight: bold; font-size: 16px;
-            border-radius: 6px; display: flex; align-items: center; justify-content: center;
-        }
-        .modal-cell.header-circle { border-radius: 50%; width: 35px; height: 35px; margin: 0 auto; }
-        .modal-cell.header-b { background: #3b0764; color: white; }
-        .modal-cell.header-i { background: #ca8a04; color: white; }
-        .modal-cell.header-n { background: #dc2626; color: white; }
-        .modal-cell.header-g { background: #22c55e; color: white; }
-        .modal-cell.header-o { background: #ef4444; color: white; }
-        .modal-cell.marked-green { background: #16a34a; color: white; }
-
-        .play-again-btn {
-            background: #1e3a8a; color: white; font-size: 18px; font-weight: bold;
-            width: 100%; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px; margin-top: 20px; cursor: pointer;
-        }
-        .badge { background: #eab308; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="wallet-box">
-        <div>📱 ስልክ ቁጥር: <input type="tel" id="userPhone" value="0911002233"></div>
-        <div>💰 ቀሪ ሂሳብ: <span id="userBalance" class="badge">500 ETB</span></div>
-        
-        <div style="margin-top: 8px;">
-            <label>🎯 የካርቴላ ዋጋ ይምረጡ:</label>
-            <select id="stakeSelect" onchange="updateStakeDisplay()">
-                <option value="10">10 ETB</option>
-                <option value="20">20 ETB</option>
-                <option value="30">30 ETB</option>
-                <option value="50">50 ETB</option>
-                <option value="100">100 ETB</option>
-                <option value="200">200 ETB</option>
-                <option value="300">300 ETB</option>
-            </select>
-        </div>
-
-        <hr style="border-color: #6366f1; margin: 10px 0;">
-        <input type="number" id="transAmount" placeholder="የገንዘብ መጠን (ETB)">
-        <div>
-            <button onclick="requestDeposit()" style="background: #22c55e; color: white;">Deposit</button>
-            <button onclick="requestWithdraw()" style="background: #ef4444; color: white;">Withdraw</button>
-        </div>
-    </div>
-
-    <div id="timerBox">ከሰርቨሩ ጋር በመገናኘት ላይ...</div>
-    
-    <div class="master-board" id="masterBoard"></div>
-    <h3 id="cardTitle" style="color: #c7d2fe;">ካርቴላ ቁጥር 1</h3>
-    
-    <div id="bingoGrid" class="grid"></div>
-
-    <div id="controlsDiv" class="controls">
-        <button class="nav-btn" onclick="prevCard()">◄ ቀዳሚ</button>
-        <input type="number" id="cardSelector" min="1" max="200" value="1" onchange="jumpToCard(this.value)" style="width: 50px; text-align: center;">
-        <button class="nav-btn" onclick="nextCard()">ቀጣይ ►</button>
-    </div>
-
-    <br>
-    <button id="startGameBtn" onclick="requestStartGame()" style="width: 100%; background: #22c55e; color: white; font-size: 16px; font-weight: bold; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: none; cursor: pointer;">
-        ▶ ጨዋታውን አስጀምር
-    </button>
-
-    <button id="bingoBtn" onclick="checkBingoWin(false)" style="width: 100%; background: #eab308; color: black; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer;">
-        🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
-    </button>
-
-    <div class="admin-panel">
-        <h4>👑 የአድሚን ቁጥጥር ፓነል</h4>
-        <div>የተሰበሰበ ኮሚሽን (10% Commission): <span id="adminVault" class="badge">0 ETB</span></div>
-        <h5>📥 የገባ የገንዘብ ጥያቄዎች:</h5>
-        <ul id="requestList" style="padding-left: 15px; font-size: 12px;">
-            <li>ምንም ጥያቄ የለም</li>
-        </ul>
-    </div>
-</div>
-
-<div class="modal-overlay" id="resultModal">
-    <div>
-        <div class="result-title" id="modalResultTitle" style="font-size: 32px; font-weight: bold; color: #ff3b3b;">ተሸንፈዋል</div>
-        <div class="total-pool" id="modalPoolText" style="font-size: 18px; font-weight: bold;">ጠቅላላ ፑል: 9 ETB</div>
-        <div class="winner-name" id="modalWinnerName" style="font-size: 20px; font-weight: bold; margin: 10px 0;">እርስዎ</div>
-
-        <div class="modal-card">
-            <div style="font-weight: bold; font-size: 20px; margin-bottom: 10px;" id="modalCardNo">ካርቴላ ቁጥር 1</div>
-            <div class="modal-grid" id="modalBingoGrid"></div>
-        </div>
-
-        <button class="play-again-btn" onclick="closeModal()">ድጋሚ ተጫወት ☷</button>
-    </div>
-</div>
-
-<script>
-    const tg = window.Telegram ? window.Telegram.WebApp : null;
+const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) { tg.ready(); tg.expand(); }
 
     const telegramUser = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
@@ -181,52 +13,27 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-   // Render WebSocket Connection
-const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
+    // Render WebSocket Connection
+    const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
 
-socket.onopen = () => {
-    document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
-    document.getElementById('timerBox').style.backgroundColor = '#4338ca';
-
-        // ለሰርቨሩ ምዝገባ መላክ
-        socket.send(JSON.stringify({
-            action: 'register_player',
-            userId: userId,
-            firstName: telegramUser ? telegramUser.first_name : "ተጫዋች", 
-            phone: document.getElementById('userPhone').value
-        }));
+    socket.onopen = () => {
+        document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
+        document.getElementById('timerBox').style.backgroundColor = '#4338ca';
     };
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        // የተጫዋቾች ብዛት ሲቀያየር
-        if (data.type === 'update_player_count') {
-            document.getElementById('timerBox').innerText = `ተጫዋቾች፡ ${data.count} | ጨዋታውን ለመጀመር ይዘጋጁ`;
-        }
-
-        // ጨዋታው ሲጀመር
-        if (data.type === 'game_started') {
-            isGameEnded = false;
-            calledNumbersList = [];
-            document.getElementById('timerBox').innerText = "ጨዋታው ተጀምሯል!";
-            document.getElementById('timerBox').style.backgroundColor = '#22c55e';
-            document.getElementById('controlsDiv').style.display = 'none';
-            document.getElementById('stakeSelect').disabled = true;
-            document.getElementById('startGameBtn').style.display = 'none';
-            
-            playerBalance -= selectedStake;
-            adminVault += (selectedStake * COMMISSION_RATE);
-            updateUI();
-        }
-
-        // ሰርቨሩ ቁጥር ሲጠራ
-        if (data.type === 'number_called') {
+        // 1. ሰርቨሩ አዲስ ቁጥር ሲልክ (action: 'new_number')
+        if (data.action === 'new_number') {
             if (isGameEnded) return;
 
             let num = data.number;
-            calledNumbersList = data.history || [];
+            if (!calledNumbersList.includes(num)) {
+                calledNumbersList.push(num);
+            }
 
+            // Master Board ላይ አሁናዊ (Active) እና ያለፉትን ቁጥሮች መቀየር
             let activeElems = document.querySelectorAll('.board-num.active');
             activeElems.forEach(el => {
                 el.classList.remove('active');
@@ -242,6 +49,13 @@ socket.onopen = () => {
             autoMarkNumber(num);
             checkBingoWin(true);
         }
+
+        // 2. ጨዋታው ሲያልቅ (action: 'game_over')
+        if (data.action === 'game_over') {
+            isGameEnded = true;
+            document.getElementById('timerBox').innerText = data.message || "ጨዋታው ተጠናቋል!";
+            document.getElementById('timerBox').style.backgroundColor = '#ef4444';
+        }
     };
 
     socket.onerror = (error) => {
@@ -255,7 +69,22 @@ socket.onopen = () => {
             alert(`ለካርቴላ መግዣ በቂ ሂሳብ የለዎትም! (${selectedStake} ETB ያስፈልጋል)`);
             return;
         }
+
+        // ለ backend ሰርቨር ጨዋታውን እንዲያስጀምር ጥያቄ መላክ
         socket.send(JSON.stringify({ action: 'start_game' }));
+
+        // UI ማስተካከያ
+        isGameEnded = false;
+        calledNumbersList = [];
+        document.getElementById('timerBox').innerText = "ጨዋታው ተጀምሯል... ቁጥሮች እየወጡ ነው!";
+        document.getElementById('timerBox').style.backgroundColor = '#22c55e';
+        document.getElementById('controlsDiv').style.display = 'none';
+        document.getElementById('stakeSelect').disabled = true;
+        document.getElementById('startGameBtn').style.display = 'none';
+
+        playerBalance -= selectedStake;
+        adminVault += (selectedStake * COMMISSION_RATE);
+        updateUI();
     }
 
     function updateStakeDisplay() {
@@ -420,10 +249,28 @@ socket.onopen = () => {
             playerBalance += prizePool;
             updateUI();
 
+            // ሰርቨሩ ላይም ቢንጎ ማለቱን ማሳወቅ
+            socket.send(JSON.stringify({
+                action: 'claim_bingo',
+                card: getRawCardData(currentCardNo)
+            }));
+
             showResultModal("አሸንፈዋል!", `${prizePool} ETB`, "እርስዎ", currentCardNo);
         } else if (!isAuto) {
             alert("ገና አልሞላም! እባክዎን ደግመው ይፈትሹ።");
         }
+    }
+
+    function getRawCardData(cardNo) {
+        const data = generateBingoCard(cardNo);
+        let flat = [];
+        for (let r = 0; r < 5; r++) {
+            ['b', 'i', 'n', 'g', 'o'].forEach((col, cIdx) => {
+                if (r === 2 && cIdx === 2) flat.push("FREE");
+                else flat.push(data[col][r]);
+            });
+        }
+        return flat;
     }
 
     async function requestDeposit() {
@@ -538,7 +385,3 @@ socket.onopen = () => {
     function nextCard() { renderCard(currentCardNo + 1); }
     function prevCard() { if(currentCardNo > 1) renderCard(currentCardNo - 1); }
     function jumpToCard(v) { renderCard(v); }
-</script>
-</body>
-</html>
-
