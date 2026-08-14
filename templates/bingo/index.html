@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Amharic Bingo Game - Integrated</title>
+    <title>Complete Amharic Bingo Game - Auto Start</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -105,8 +105,6 @@
                 <option value="30">30 ETB</option>
                 <option value="50">50 ETB</option>
                 <option value="100">100 ETB</option>
-                <option value="200">200 ETB</option>
-                <option value="300">300 ETB</option>
             </select>
         </div>
 
@@ -132,17 +130,13 @@
     </div>
 
     <br>
-    <button id="startGameBtn" onclick="requestStartGame()" style="width: 100%; background: #22c55e; color: white; font-size: 16px; font-weight: bold; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: none; cursor: pointer;">
-        ▶ ጨዋታውን አስጀምር
-    </button>
-
     <button id="bingoBtn" onclick="checkBingoWin(false)" style="width: 100%; background: #eab308; color: black; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer;">
         🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
     </button>
 
     <div class="admin-panel">
         <h4>👑 የአድሚን ቁጥጥር ፓነል</h4>
-        <div>የተሰበሰበ ኮሚሽን (10% Commission): <span id="adminVault" class="badge">0 ETB</span></div>
+        <div>የተሰበሰበ ኮሚሽን (10%): <span id="adminVault" class="badge">0 ETB</span></div>
         <h5>📥 የገባ የገንዘብ ጥያቄዎች:</h5>
         <ul id="requestList" style="padding-left: 15px; font-size: 12px;">
             <li>ምንም ጥያቄ የለም</li>
@@ -185,23 +179,22 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-    // Render WebSocket Connection
     const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
 
     socket.onopen = () => {
-        document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
+        document.getElementById('timerBox').innerText = "ከሰርቨር ጋር ተገናኝቷል!";
         document.getElementById('timerBox').style.backgroundColor = '#4338ca';
+        // ገጹ እንደተከፈተ በራስ-ሰር 45 ሰከንድ መቁጠር ይጀምራል
+        startSelectionCountdown(45);
     };
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        // 1. የካርቴላ መምረጫ ታይመር ሲጀምር
         if (data.action === 'start_card_selection') {
             startSelectionCountdown(data.duration || 45);
         }
 
-        // 2. ሰርቨሩ አዲስ ቁጥር ሲልክ
         if (data.action === 'new_number') {
             if (isGameEnded || isSelectionPhase) return;
 
@@ -226,7 +219,6 @@
             checkBingoWin(true);
         }
 
-        // 3. ጨዋታው ሲያልቅ እና አሸናፊ ሲታወቅ (ለስክሪኑ ሁሉ ይላካል)
         if (data.action === 'game_over' || data.action === 'player_won') {
             isGameEnded = true;
             clearInterval(timerInterval);
@@ -239,7 +231,6 @@
             document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ ካርቴላ ቁጥር፡ ${winningCard}`;
             document.getElementById('timerBox').style.backgroundColor = '#ef4444';
 
-            // የአሸናፊውን ካርቴላ ቁጥር ለሁሉም ተጫዋቾች በ Modal ማሳየት
             showResultModal(
                 isMe ? "አሸንፈዋል!" : "ሌላ ተጫዋች አሸንፏል!",
                 `${pool} ETB`,
@@ -250,27 +241,31 @@
     };
 
     socket.onerror = (error) => {
-        console.error("WebSocket Error:", error);
         document.getElementById('timerBox').innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም!";
         document.getElementById('timerBox').style.backgroundColor = '#ef4444';
     };
 
-    // ⏱️ የ 45 ሰከንድ የካርቴላ መምረጫ ታይመር
+    // ⏱️ የ 45 ሰከንድ ካርቴላ መምረጫ ታይመር
     function startSelectionCountdown(duration) {
         isSelectionPhase = true;
         selectTimer = duration;
 
-        document.getElementById('startGameBtn').style.display = 'none';
-        document.getElementById('controlsDiv').style.display = 'flex'; // ካርቴላ መምረጫን ማሳየት
+        document.getElementById('controlsDiv').style.display = 'flex';
 
         clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if (selectTimer <= 0) {
                 clearInterval(timerInterval);
                 isSelectionPhase = false;
-                document.getElementById('controlsDiv').style.display = 'none'; // ካርቴላ እንዳይቀይሩ መጋረድ
-                document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው ተጀምሯል...";
+                
+                // 1. መምረጫውን መዝጋት
+                document.getElementById('controlsDiv').style.display = 'none';
+                document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው በራስ-ሰር ተጀምሯል...";
                 document.getElementById('timerBox').style.backgroundColor = '#22c55e';
+
+                // 2. ⚡ 45 ሰከንዱ እንዳለቀ በራስ-ሰር ጨዋታውን ማስጀመር
+                triggerAutoStartGame();
+
             } else {
                 document.getElementById('timerBox').innerText = `ካርቴላ ይምረጡ! ቀሪ ጊዜ፡ ${selectTimer} ሰከንድ`;
                 document.getElementById('timerBox').style.backgroundColor = '#d97706';
@@ -279,24 +274,26 @@
         }, 1000);
     }
 
-    function requestStartGame() {
+    // ⚡ 45 ሰከንዱ አልቆ በራስ-ሰር ቁጥሮች እንዲጠሩ ለሰርቨር ጥያቄ መላክ
+    function triggerAutoStartGame() {
         if (playerBalance < selectedStake) {
             alert(`ለካርቴላ መግዣ በቂ ሂሳብ የለዎትም! (${selectedStake} ETB ያስፈልጋል)`);
             return;
         }
-        
+
         isGameEnded = false;
         calledNumbersList = [];
-
-        // ሰርቨሩ የ 45 ሰከንድ መምረጫ ታይመር ለሁሉም እንዲልክ ጥያቄ መላክ
-        socket.send(JSON.stringify({ 
-            action: 'start_card_selection', 
-            duration: 45 
-        }));
 
         playerBalance -= selectedStake;
         adminVault += (selectedStake * COMMISSION_RATE);
         updateUI();
+
+        // ሰርቨሩ በየ 3 ሰከንዱ ቁጥሮችን መጥራት እንዲጀምር መልእክት መላክ
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ 
+                action: 'start_drawing_numbers' 
+            }));
+        }
     }
 
     function updateStakeDisplay() {
@@ -463,30 +460,16 @@
             playerBalance += prizePool;
             updateUI();
 
-            // ለአሸናፊነት መረጃውን ለሰርቨር መላክ (ለሌሎች ተጫዋቾችም እንዲላክ)
             socket.send(JSON.stringify({
                 action: 'claim_bingo',
                 winner_id: userId,
                 winner_name: userName,
                 winning_card_no: currentCardNo,
-                prize_pool: prizePool,
-                card: getRawCardData(currentCardNo)
+                prize_pool: prizePool
             }));
         } else if (!isAuto) {
             alert("ገና አልሞላም! እባክዎን ደግመው ይፈትሹ።");
         }
-    }
-
-    function getRawCardData(cardNo) {
-        const data = generateBingoCard(cardNo);
-        let flat = [];
-        for (let r = 0; r < 5; r++) {
-            ['b', 'i', 'n', 'g', 'o'].forEach((col, cIdx) => {
-                if (r === 2 && cIdx === 2) flat.push("FREE");
-                else flat.push(data[col][r]);
-            });
-        }
-        return flat;
     }
 
     async function requestDeposit() {
