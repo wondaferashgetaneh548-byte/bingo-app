@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Game - Telegram WebApp Integration</title>
+    <title>Bingo Game - Phone & Password Login</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -14,6 +14,27 @@
             max-width: 450px; margin: 0 auto; background: #312e81; padding: 15px;
             border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative;
         }
+
+        /* 🔐 የመግቢያ / የምዝገባ Modal Overlay */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center;
+            align-items: center; z-index: 5000;
+        }
+        .auth-card {
+            background: #312e81; border: 2px solid #6366f1; padding: 25px;
+            border-radius: 16px; width: 85%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .auth-card h3 { margin-top: 0; color: #a5b4fc; }
+        .auth-card input {
+            width: 90%; padding: 10px; margin: 8px 0; border-radius: 6px;
+            border: 1px solid #4f46e5; background: #1e1b4b; color: white; text-align: center; font-size: 14px;
+        }
+        .auth-card button {
+            width: 97%; padding: 12px; margin-top: 10px; background: #22c55e;
+            color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;
+        }
+
         .user-badge {
             background: #4f46e5; padding: 6px 12px; border-radius: 20px; font-size: 13px;
             display: inline-block; margin-bottom: 10px; font-weight: bold; border: 1px solid #818cf8;
@@ -55,13 +76,9 @@
             transition: all 0.2s ease;
         }
         .cell.header { background-color: #4338ca; color: white; font-size: 20px; cursor: default; }
-        
         .cell.marked { 
-            background: #ef4444 !important; 
-            color: white !important; 
-            font-weight: bold;
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+            background: #ef4444 !important; color: white !important; font-weight: bold;
+            transform: scale(1.05); box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
         }
         .cell.free { background: #10b981; color: white; font-size: 14px; }
 
@@ -71,10 +88,10 @@
             border-radius: 6px; cursor: pointer; font-weight: bold;
         }
         
+        /* 👑 የአድሚን ፓነል */
         .admin-panel {
-            display: none;
-            background: #881337; border: 2px solid #f43f5e; padding: 12px;
-            border-radius: 10px; margin-top: 20px; text-align: left;
+            display: none; background: #881337; border: 2px solid #f43f5e; padding: 12px;
+            border-radius: 10px; margin-bottom: 15px; text-align: left;
         }
 
         .modal-overlay {
@@ -107,12 +124,24 @@
 </head>
 <body>
 
+<!-- 🔐 የመግቢያ / የምዝገባ Window -->
+<div class="auth-overlay" id="authModal">
+    <div class="auth-card">
+        <h3>🔑 ይግቡ / ይመዝገቡ</h3>
+        <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">ለመጫወት የስልክ ቁጥርዎንና Password ያስገቡ</p>
+        
+        <input type="tel" id="loginPhone" placeholder="የስልክ ቁጥር (09...)" required>
+        <input type="password" id="loginPassword" placeholder="የይለፍ ቃል (Password)" required>
+        
+        <button onclick="handleUserAuth()">ይግቡ / ይመዝገቡ</button>
+    </div>
+</div>
+
 <div class="container">
-    <!-- ⚡ የተጫዋቹ የቴሌግራም ስም እዚህ ጋር ይታያል -->
-    <div class="user-badge" id="userInfoDisplay">👤 በመጫን ላይ...</div>
+    <div class="user-badge" id="userInfoDisplay">👤 አካውንት አልገባም</div>
 
     <div class="wallet-box">
-        <div>📱 ስልክ ቁጥር: <input type="tel" id="userPhone" value="0911002233"></div>
+        <div>📱 ስልክ ቁጥር: <span id="displayUserPhone" style="font-weight: bold; color: #a5b4fc;">-</span></div>
         <div>💰 ቀሪ ሂሳብ: <span id="userBalance" class="badge">500 ETB</span></div>
         
         <div style="margin-top: 8px;">
@@ -134,6 +163,16 @@
         </div>
     </div>
 
+    <!-- 👑 የአድሚን ፓነል (0986864455 ሲሆን ከላይ ይታያል) -->
+    <div class="admin-panel" id="adminPanel">
+        <h4>👑 የአድሚን ቁጥጥር ፓነል (0986864455)</h4>
+        <div>የተሰበሰበ ኮሚሽን (10%): <span id="adminVault" class="badge">0 ETB</span></div>
+        <h5>📥 የገባ የገንዘብ ጥያቄዎች:</h5>
+        <ul id="requestList" style="padding-left: 15px; font-size: 12px;">
+            <li>ምንም ጥያቄ የለም</li>
+        </ul>
+    </div>
+
     <div id="timerBox">ከሰርቨሩ ጋር በመገናኘት ላይ...</div>
     
     <div class="master-board" id="masterBoard"></div>
@@ -151,16 +190,6 @@
     <button id="bingoBtn" onclick="checkBingoWin(false)" style="width: 100%; background: #eab308; color: black; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer;">
         🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
     </button>
-
-    <!-- ⚡ የአድሚን ፓነል (0986864455 ሲሆን ብቻ ይታያል) -->
-    <div class="admin-panel" id="adminPanel">
-        <h4>👑 የአድሚን ቁጥጥር ፓነል (0986864455)</h4>
-        <div>የተሰበሰበ ኮሚሽን (10%): <span id="adminVault" class="badge">0 ETB</span></div>
-        <h5>📥 የገባ የገንዘብ ጥያቄዎች:</h5>
-        <ul id="requestList" style="padding-left: 15px; font-size: 12px;">
-            <li>ምንም ጥያቄ የለም</li>
-        </ul>
-    </div>
 </div>
 
 <div class="modal-overlay" id="resultModal">
@@ -179,18 +208,14 @@
 </div>
 
 <script>
-    // ⚡ 1. Telegram WebApp Auto-Registration / Authentication
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) { tg.ready(); tg.expand(); }
 
-    const telegramUser = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
-    
-    // የቴሌግራም ID እና ስም ካለ በቀጥታ ይወስደዋል፣ ካልሆነ Random ID ይሰጠዋል
-    const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 100000);
-    const userName = telegramUser ? (telegramUser.first_name + (telegramUser.last_name ? ' ' + telegramUser.last_name : '')) : "ተጫዋች";
-
     const ADMIN_PHONE = "0986864455";
     const COMMISSION_RATE = 0.10;
+
+    let currentUserPhone = "";
+    let currentUserId = "";
 
     let currentCardNo = 1;
     let calledNumbersList = [];
@@ -203,71 +228,105 @@
     let adminVault = 0;
     let selectedStake = 10;
 
-    const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
+    // 🔐 የመግቢያ / የምዝገባ Logic
+    function handleUserAuth() {
+        const phone = document.getElementById('loginPhone').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
 
-    socket.onopen = () => {
-        document.getElementById('timerBox').innerText = "ከሰርቨር ጋር ተገናኝቷል!";
-        document.getElementById('timerBox').style.backgroundColor = '#4338ca';
-        startSelectionCountdown(45);
-    };
-
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        let rawNum = data.number || data.called_number || data.new_number;
-
-        if (rawNum !== undefined && !isGameEnded && !isSelectionPhase) {
-            let num = parseInt(rawNum);
-
-            if (!calledNumbersList.includes(num)) {
-                calledNumbersList.push(num);
-            }
-
-            let activeElems = document.querySelectorAll('.board-num.active');
-            activeElems.forEach(el => {
-                el.classList.remove('active');
-                el.classList.add('called');
-            });
-
-            let currentElem = document.getElementById(`mb-${num}`);
-            if (currentElem) {
-                currentElem.classList.add('active');
-            }
-
-            autoMarkNumber(num);
-            playNumberAudio(num); 
-            checkBingoWin(true);
+        if (!phone || phone.length < 9) {
+            alert("እባክዎን ትክክለኛ የስልክ ቁጥር ያስገቡ!");
+            return;
+        }
+        if (!password || password.length < 4) {
+            alert("Password ከ4 ፊደል/ቁጥር ማነስ የለበትም!");
+            return;
         }
 
-        if (data.action === 'game_over' || data.action === 'player_won') {
-            isGameEnded = true;
-            clearInterval(timerInterval);
+        currentUserPhone = phone;
+        currentUserId = "user_" + phone;
 
-            const winningCard = data.winning_card_no || currentCardNo;
-            const winner = data.winner_name || "አንድ ተጫዋች";
-            const prizePool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
-            const isMe = data.winner_id === userId;
+        // የመግቢያ መስኮቱን መዝጋት
+        document.getElementById('authModal').style.display = 'none';
 
-            if (isMe) {
-                playerBalance += prizePool;
-                updateUI();
+        // መረጃዎችን ማዘመን
+        document.getElementById('displayUserPhone').innerText = currentUserPhone;
+        document.getElementById('userInfoDisplay').innerText = `👤 ተጫዋች: ${currentUserPhone}`;
+
+        // የአድሚን ፓነል መፈተሽ
+        checkAdminAccess();
+
+        // WebSocket ማገናኘት
+        connectWebSocket();
+    }
+
+    let socket = null;
+    function connectWebSocket() {
+        socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
+
+        socket.onopen = () => {
+            document.getElementById('timerBox').innerText = "ከሰርቨር ጋር ተገናኝቷል!";
+            document.getElementById('timerBox').style.backgroundColor = '#4338ca';
+            startSelectionCountdown(45);
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            let rawNum = data.number || data.called_number || data.new_number;
+
+            if (rawNum !== undefined && !isGameEnded && !isSelectionPhase) {
+                let num = parseInt(rawNum);
+
+                if (!calledNumbersList.includes(num)) {
+                    calledNumbersList.push(num);
+                }
+
+                let activeElems = document.querySelectorAll('.board-num.active');
+                activeElems.forEach(el => {
+                    el.classList.remove('active');
+                    el.classList.add('called');
+                });
+
+                let currentElem = document.getElementById(`mb-${num}`);
+                if (currentElem) {
+                    currentElem.classList.add('active');
+                }
+
+                autoMarkNumber(num);
+                playNumberAudio(num); 
+                checkBingoWin(true);
             }
 
-            document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ፡ ${winner} (ካርቴላ #${winningCard})`;
+            if (data.action === 'game_over' || data.action === 'player_won') {
+                isGameEnded = true;
+                clearInterval(timerInterval);
+
+                const winningCard = data.winning_card_no || currentCardNo;
+                const winner = data.winner_name || "አንድ ተጫዋች";
+                const prizePool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
+                const isMe = data.winner_id === currentUserId;
+
+                if (isMe) {
+                    playerBalance += prizePool;
+                    updateUI();
+                }
+
+                document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ፡ ${winner} (ካርቴላ #${winningCard})`;
+                document.getElementById('timerBox').style.backgroundColor = '#ef4444';
+
+                showResultModal(
+                    isMe ? "አሸንፈዋል!" : "ሌላ ተጫዋች አሸንፏል!",
+                    `${prizePool} ETB`,
+                    `${winner} (ካርቴላ #${winningCard})`,
+                    winningCard
+                );
+            }
+        };
+
+        socket.onerror = (error) => {
+            document.getElementById('timerBox').innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም!";
             document.getElementById('timerBox').style.backgroundColor = '#ef4444';
-
-            showResultModal(
-                isMe ? "አሸንፈዋል!" : "ሌላ ተጫዋች አሸንፏል!",
-                `${prizePool} ETB`,
-                `${winner} (ካርቴላ #${winningCard})`,
-                winningCard
-            );
-        }
-    };
-
-    socket.onerror = (error) => {
-        document.getElementById('timerBox').innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም!";
-        document.getElementById('timerBox').style.backgroundColor = '#ef4444';
-    };
+        };
+    }
 
     function startSelectionCountdown(duration) {
         isSelectionPhase = true;
@@ -281,7 +340,8 @@
                 clearInterval(timerInterval);
                 isSelectionPhase = false;
                 
-                document.getElementById('controlsDiv').style.display = 'none';
+                // ጨዋታው ሲጀምር መቆጣጠሪያዎቹ እንዲታዩ ማድርግ
+                document.getElementById('controlsDiv').style.display = 'flex';
                 document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው ተጀምሯል...";
                 document.getElementById('timerBox').style.backgroundColor = '#22c55e';
 
@@ -310,7 +370,7 @@
 
         updateUI();
 
-        if (socket.readyState === WebSocket.OPEN) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ 
                 action: 'start_drawing_numbers' 
             }));
@@ -318,11 +378,8 @@
     }
 
     function checkAdminAccess() {
-        const currentPhone = document.getElementById('userPhone').value.trim();
-        const urlParams = new URLSearchParams(window.location.search);
-        const isAdminQuery = urlParams.get('admin') === 'true';
-
-        if (currentPhone === ADMIN_PHONE || isAdminQuery) {
+        // የገባው ስልክ 0986864455 ከሆነ የአድሚን ፓነል ይታያል
+        if (currentUserPhone === ADMIN_PHONE) {
             document.getElementById('adminPanel').style.display = 'block';
         } else {
             document.getElementById('adminPanel').style.display = 'none';
@@ -382,15 +439,9 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
-        // የተጫዋቹን ስም እና Telegram ID በስክሪኑ ላይ ማሳየት
-        document.getElementById('userInfoDisplay').innerText = `👤 ${userName} (ID: ${userId})`;
-
         createMasterBoard();
         renderCard(1);
         updateStakeDisplay();
-        checkAdminAccess();
-
-        document.getElementById('userPhone').addEventListener('input', checkAdminAccess);
     });
 
     function autoMarkNumber(calledNum) {
@@ -507,8 +558,8 @@
 
             socket.send(JSON.stringify({
                 action: 'claim_bingo',
-                winner_id: userId,
-                winner_name: userName,
+                winner_id: currentUserId,
+                winner_name: currentUserPhone,
                 winning_card_no: currentCardNo,
                 prize_pool: prizePool
             }));
@@ -519,25 +570,23 @@
 
     async function requestDeposit() {
         let amount = parseFloat(document.getElementById('transAmount').value);
-        let phone = document.getElementById('userPhone').value;
         if (!amount || amount <= 0) return alert("ትክክለኛ መጠን ያስገቡ");
 
-        addAdminRequest(`Deposit: ${phone} - ${amount} ETB`, () => {
+        addAdminRequest(`Deposit: ${currentUserPhone} - ${amount} ETB`, () => {
             playerBalance += amount;
             updateUI();
-            alert(`ለ ${phone} ${amount} ETB ገቢ ተደርጓል!`);
+            alert(`ለ ${currentUserPhone} ${amount} ETB ገቢ ተደርጓል!`);
         });
     }
 
     async function requestWithdraw() {
         let amount = parseFloat(document.getElementById('transAmount').value);
-        let phone = document.getElementById('userPhone').value;
         if (!amount || amount > playerBalance) return alert("በቂ ሂሳብ የለዎትም!");
 
-        addAdminRequest(`Withdraw: ${phone} - ${amount} ETB`, () => {
+        addAdminRequest(`Withdraw: ${currentUserPhone} - ${amount} ETB`, () => {
             playerBalance -= amount;
             updateUI();
-            alert(`ለ ${phone} ${amount} ETB ወጪ ተደርጓል!`);
+            alert(`ለ ${currentUserPhone} ${amount} ETB ወጪ ተደርጓል!`);
         });
     }
 
