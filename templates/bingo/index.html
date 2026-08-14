@@ -26,7 +26,7 @@
         }
         #timerBox {
             background-color: #ef4444; color: white; padding: 10px; border-radius: 8px;
-            font-weight: bold; margin-bottom: 15px; font-size: 16px;
+            font-weight: bold; margin-bottom: 15px; font-size: 16px; transition: all 0.3s ease;
         }
         .master-board { background: #1e1b4b; padding: 8px; border-radius: 8px; margin-bottom: 15px; }
         .board-row { display: flex; align-items: center; gap: 2px; margin-bottom: 3px; }
@@ -171,10 +171,14 @@
 
     const telegramUser = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
     const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 1000000);
+    const userName = telegramUser ? (telegramUser.first_name + (telegramUser.last_name ? ' ' + telegramUser.last_name : '')) : "ተጫዋች";
 
     let currentCardNo = 1;
     let calledNumbersList = [];
     let isGameEnded = false;
+    let isSelectionPhase = false;
+    let selectTimer = 45;
+    let timerInterval = null;
 
     let playerBalance = 500;
     let adminVault = 0;
@@ -192,9 +196,14 @@
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        // ሰርቨሩ አዲስ ቁጥር ሲልክ
+        // 1. የካርቴላ መምረጫ ታይመር ሲጀምር
+        if (data.action === 'start_card_selection') {
+            startSelectionCountdown(data.duration || 45);
+        }
+
+        // 2. ሰርቨሩ አዲስ ቁጥር ሲልክ
         if (data.action === 'new_number') {
-            if (isGameEnded) return;
+            if (isGameEnded || isSelectionPhase) return;
 
             let num = data.number;
             if (!calledNumbersList.includes(num)) {
@@ -217,11 +226,26 @@
             checkBingoWin(true);
         }
 
-        // ጨዋታው ሲያልቅ
-        if (data.action === 'game_over') {
+        // 3. ጨዋታው ሲያልቅ እና አሸናፊ ሲታወቅ (ለስክሪኑ ሁሉ ይላካል)
+        if (data.action === 'game_over' || data.action === 'player_won') {
             isGameEnded = true;
-            document.getElementById('timerBox').innerText = data.message || "ጨዋታው ተጠናቋል!";
+            clearInterval(timerInterval);
+
+            const winningCard = data.winning_card_no || currentCardNo;
+            const winner = data.winner_name || "አንድ ተጫዋች";
+            const pool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
+            const isMe = data.winner_id === userId;
+
+            document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ ካርቴላ ቁጥር፡ ${winningCard}`;
             document.getElementById('timerBox').style.backgroundColor = '#ef4444';
+
+            // የአሸናፊውን ካርቴላ ቁጥር ለሁሉም ተጫዋቾች በ Modal ማሳየት
+            showResultModal(
+                isMe ? "አሸንፈዋል!" : "ሌላ ተጫዋች አሸንፏል!",
+                `${pool} ETB`,
+                `${winner} (ካርቴላ #${winningCard})`,
+                winningCard
+            );
         }
     };
 
@@ -231,21 +255,44 @@
         document.getElementById('timerBox').style.backgroundColor = '#ef4444';
     };
 
+    // ⏱️ የ 45 ሰከንድ የካርቴላ መምረጫ ታይመር
+    function startSelectionCountdown(duration) {
+        isSelectionPhase = true;
+        selectTimer = duration;
+
+        document.getElementById('startGameBtn').style.display = 'none';
+        document.getElementById('controlsDiv').style.display = 'flex'; // ካርቴላ መምረጫን ማሳየት
+
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (selectTimer <= 0) {
+                clearInterval(timerInterval);
+                isSelectionPhase = false;
+                document.getElementById('controlsDiv').style.display = 'none'; // ካርቴላ እንዳይቀይሩ መጋረድ
+                document.getElementById('timerBox').innerText = "ጊዜው አበቃ! ጨዋታው ተጀምሯል...";
+                document.getElementById('timerBox').style.backgroundColor = '#22c55e';
+            } else {
+                document.getElementById('timerBox').innerText = `ካርቴላ ይምረጡ! ቀሪ ጊዜ፡ ${selectTimer} ሰከንድ`;
+                document.getElementById('timerBox').style.backgroundColor = '#d97706';
+                selectTimer--;
+            }
+        }, 1000);
+    }
+
     function requestStartGame() {
         if (playerBalance < selectedStake) {
             alert(`ለካርቴላ መግዣ በቂ ሂሳብ የለዎትም! (${selectedStake} ETB ያስፈልጋል)`);
             return;
         }
         
-        socket.send(JSON.stringify({ action: 'start_game' }));
-
         isGameEnded = false;
         calledNumbersList = [];
-        document.getElementById('timerBox').innerText = "ጨዋታው ተጀምሯል... ቁጥሮች እየወጡ ነው!";
-        document.getElementById('timerBox').style.backgroundColor = '#22c55e';
-        document.getElementById('controlsDiv').style.display = 'none';
-        document.getElementById('stakeSelect').disabled = true;
-        document.getElementById('startGameBtn').style.display = 'none';
+
+        // ሰርቨሩ የ 45 ሰከንድ መምረጫ ታይመር ለሁሉም እንዲልክ ጥያቄ መላክ
+        socket.send(JSON.stringify({ 
+            action: 'start_card_selection', 
+            duration: 45 
+        }));
 
         playerBalance -= selectedStake;
         adminVault += (selectedStake * COMMISSION_RATE);
@@ -368,7 +415,9 @@
                     let num = cardData[col][r];
                     cell.innerText = num;
                     cell.dataset.rawNumber = num;
-                    cell.addEventListener('click', function() { this.classList.toggle('marked'); });
+                    cell.addEventListener('click', function() { 
+                        if (!isSelectionPhase) this.classList.toggle('marked'); 
+                    });
                 }
                 grid.appendChild(cell);
             });
@@ -376,7 +425,7 @@
     }
 
     function checkBingoWin(isAuto = false) {
-        if (isGameEnded) return;
+        if (isGameEnded || isSelectionPhase) return;
 
         const grid = document.getElementById('bingoGrid');
         const cells = Array.from(grid.querySelectorAll('.cell:not(.header)'));
@@ -414,12 +463,15 @@
             playerBalance += prizePool;
             updateUI();
 
+            // ለአሸናፊነት መረጃውን ለሰርቨር መላክ (ለሌሎች ተጫዋቾችም እንዲላክ)
             socket.send(JSON.stringify({
                 action: 'claim_bingo',
+                winner_id: userId,
+                winner_name: userName,
+                winning_card_no: currentCardNo,
+                prize_pool: prizePool,
                 card: getRawCardData(currentCardNo)
             }));
-
-            showResultModal("አሸንፈዋል!", `${prizePool} ETB`, "እርስዎ", currentCardNo);
         } else if (!isAuto) {
             alert("ገና አልሞላም! እባክዎን ደግመው ይፈትሹ።");
         }
