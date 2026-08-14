@@ -181,10 +181,9 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-    // --- Native WebSocket Connection (Render) ---
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${wsProtocol}//bingo-app-1-91no.onrender.com/ws/bingo/`);
-
+   // ከ ws Protocol ጋር Render URL ን ማገናኘት
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${wsProtocol}//bingo-app-1-91no.onrender.com/ws/bingo/`);
     socket.onopen = () => {
         document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
         document.getElementById('timerBox').style.backgroundColor = '#4338ca';
@@ -193,7 +192,7 @@
         socket.send(JSON.stringify({
             action: 'register_player',
             userId: userId,
-            firstName: telegramUser ? telegramUser.first_name : "ተጫዋች",
+            firstName: telegramUser ? telegramUser.first_name : "ተጫዋች", 
             phone: document.getElementById('userPhone').value
         }));
     };
@@ -542,3 +541,4 @@
 </script>
 </body>
 </html>
+

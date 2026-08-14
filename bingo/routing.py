@@ -2,5 +2,7 @@ from django.urls import re_path
 from . import consumers
 
 websocket_urlpatterns = [
-    re_path(r'^ws/bingo/$', consumers.BingoConsumer.as_asgi()), # ወይም r'ws/bingo/' ከሆነ ከተለያዩ አፃፃፎች ጋር እንዲሄድ ከታች ያለውን ተጠቀም
+    # ሁለቱንም አይነት አፃፃፍ (በ slash እና ያለ slash) እንዲቀበል ተደርጓል
+    re_path(r'^ws/bingo/$', consumers.BingoConsumer.as_asgi()),
+    re_path(r'ws/bingo/', consumers.BingoConsumer.as_asgi()),
 ]
