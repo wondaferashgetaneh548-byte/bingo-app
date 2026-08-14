@@ -12,8 +12,8 @@ class BingoConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs'].get('room_name', 'default')
         self.room_group_name = f'bingo_{self.room_name}'
 
-        if self.room_name not in self.rooms:
-            self.rooms[self.room_name] = {
+        if self.room_name not in BingoConsumer.rooms:
+            BingoConsumer.rooms[self.room_name] = {
                 'drawn_numbers': [],
                 'is_running': False,
                 'task': None
@@ -35,9 +35,10 @@ class BingoConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         action = data.get('action')
 
-        # 1. ጨዋታ ሲጀመር (Start Game)
-        if action == 'start_game':
-            room = self.rooms[self.room_name]
+        room = BingoConsumer.rooms[self.room_name]
+
+        # ⚡ 1. Frontend ከሚልካቸው ሁለቱም የስም አይነቶች ጋር እንዲስማማ የተደረገ ('start_drawing_numbers' OR 'start_game')
+        if action in ['start_drawing_numbers', 'start_game']:
             if not room['is_running']:
                 room['is_running'] = True
                 room['drawn_numbers'] = []
@@ -47,28 +48,46 @@ class BingoConsumer(AsyncWebsocketConsumer):
         # 2. ተጫዋች ቢንጎ (Bingo) ሲል
         elif action == 'claim_bingo':
             player_card = data.get('card') # የተጫዋቹ 25 ቁጥሮች
-            if self.check_bingo_win(player_card, self.rooms[self.room_name]['drawn_numbers']):
+            winner_name = data.get('winner_name', 'አንድ ተጫዋች')
+            winning_card_no = data.get('winning_card_no', 1)
+            prize_pool = data.get('prize_pool', 0)
+            winner_id = data.get('winner_id', '')
+
+            # ካርድ ከተላከ ማረጋገጥ፣ ካልተላከ ደግሞ በቀጥታ ማሸነፉን ማወጅ
+            is_valid = True
+            if player_card:
+                is_valid = self.check_bingo_win(player_card, room['drawn_numbers'])
+
+            if is_valid:
+                room['is_running'] = False
+                if room['task']:
+                    room['task'].cancel()
+
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         'type': 'bingo_message',
                         'action': 'game_over',
-                        'winner': self.channel_name,
-                        'message': '🎉 ቢንጎ! አሸንፈዋል!'
+                        'winner_id': winner_id,
+                        'winner_name': winner_name,
+                        'winning_card_no': winning_card_no,
+                        'prize_pool': prize_pool,
+                        'message': f'🎉 ቢንጎ! {winner_name} አሸንፈዋል!'
                     }
                 )
-                self.rooms[self.room_name]['is_running'] = False
-                if self.rooms[self.room_name]['task']:
-                    self.rooms[self.room_name]['task'].cancel()
 
     async def auto_draw_numbers(self):
-        room = self.rooms[self.room_name]
+        room = BingoConsumer.rooms[self.room_name]
         available_numbers = list(range(1, 76))
+        random.shuffle(available_numbers)
         
         while room['is_running'] and available_numbers:
             await asyncio.sleep(3) # በየ 3 ሰከንዱ ይወጣል
-            num = random.choice(available_numbers)
-            available_numbers.remove(num)
+            
+            if not room['is_running']:
+                break
+
+            num = available_numbers.pop(0)
             room['drawn_numbers'].append(num)
 
             await self.channel_layer.group_send(
@@ -81,11 +100,13 @@ class BingoConsumer(AsyncWebsocketConsumer):
             )
 
     async def bingo_message(self, event):
+        # ለ Frontend መረጃውን መላክ
         await self.send(text_data=json.dumps(event))
 
     def check_bingo_win(self, card, drawn_numbers):
-        # 5x5 Grid Check (መስመር፣ አምድ ወይም ዲያጎናል ሙሉ መሆን አለበት)
-        # FREE (መካከለኛው) ሁልጊዜ እንደወጣ ይቆጠራል
+        if not card or len(card) < 25:
+            return False
+
         drawn_set = set(drawn_numbers)
         
         # 5x5 Matrix መፍጠር
@@ -95,12 +116,19 @@ class BingoConsumer(AsyncWebsocketConsumer):
 
         # 横 (Row) ማረጋገጥ
         for row in matrix:
-            if all(num == "FREE" or num in drawn_set for num in row):
+            if all(num in ["FREE", "ነፃ", "F"] or int(num) in drawn_set for num in row):
                 return True
 
         # 縦 (Column) ማረጋገጥ
         for col in range(5):
-            if all(matrix[row][col] == "FREE" or matrix[row][col] in drawn_set for row in range(5)):
+            if all(matrix[row][col] in ["FREE", "ነፃ", "F"] or int(matrix[row][col]) in drawn_set for row in range(5)):
                 return True
+
+        # Diagonal ማረጋገጥ
+        if all(matrix[i][i] in ["FREE", "ነፃ", "F"] or int(matrix[i][i]) in drawn_set for i in range(5)):
+            return True
+            
+        if all(matrix[i][4-i] in ["FREE", "ነፃ", "F"] or int(matrix[i][4-i]) in drawn_set for i in range(5)):
+            return True
 
         return False
