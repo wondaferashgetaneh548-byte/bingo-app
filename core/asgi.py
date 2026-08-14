@@ -6,6 +6,7 @@ import bingo.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
+# HTTP እና WebSocket ጥያቄዎችን ለይቶ ይመራል
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
