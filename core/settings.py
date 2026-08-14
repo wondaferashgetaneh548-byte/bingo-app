@@ -1,11 +1,13 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 SECURE_SETTINGS = {
     'ngrok-skip-browser-warning': 'true',
 }
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-your-secret-key-change-this-in-production'
 
@@ -18,7 +20,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    # 1. Daphne ከstaticfiles በላይ መሆን አለበት (ለ WebSocket/ASGI ይረዳል)
+    # 1. Daphne ከstaticfiles በላይ መሆን አለበት (ለ WebSocket/ASGI)
     'daphne',
     
     'django.contrib.admin',
@@ -31,7 +33,7 @@ INSTALLED_APPS = [
     # 2. WebSocket እና Real-time አፕሊኬሽኖች
     'channels',
 
-    # 3. የእርስዎ መተግበሪያ (App)
+    # 3. የእርስዎ መተግበሪያ
     'bingo',
 ]
 
@@ -42,10 +44,19 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware', # Telegram Mini App በ Iframe እንዲከፈት ተዘግቷል
 ]
 
-ROOT_URLCONF = 'core.urls'  # ፕሮጀክትዎ my_mongo_django ከሆነ 'my_mongo_django.urls' ያድርጉት
+# Telegram Mini App በ Iframe ውስጥ ያለምንም ችግር እንዲከፈት መፍቀድ
+X_FRAME_OPTIONS = 'ALLOWALL'
+
+# HTTPS & Telegram Request ማስተናገጃ
+CSRF_TRUSTED_ORIGINS = [
+    'https://bingo-app-1-91no.onrender.com',
+    'https://web.telegram.org',
+]
+
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
@@ -63,15 +74,14 @@ TEMPLATES = [
     },
 ]
 
-# 4. ASGI Application ማዋቀር (WebSocket እንዲሰራ በጣም አስፈላጊ ነው)
-ASGI_APPLICATION = 'core.asgi.application'  # ወይም 'my_mongo_django.asgi.application'
+# 4. ASGI Application ማዋቀር
+ASGI_APPLICATION = 'core.asgi.application'
 
-# WSGI Application (ለወትሮው HTTP request)
+# WSGI Application
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # Database Configuration
-# SQLite3 ወይም MongoDB እንደ ፕሮጀክትዎ መጠቀም ይችላሉ፡
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -80,7 +90,7 @@ DATABASES = {
 }
 
 
-# 5. Channel Layer Configuration (በአንድ ጊዜ ለብዙ ተጫዋቾች መረጃ ለማስተላለፍ)
+# 5. Channel Layer Configuration
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
@@ -118,8 +128,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
-ASGI_APPLICATION = 'core.asgi.application'

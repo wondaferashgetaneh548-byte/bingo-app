@@ -181,12 +181,12 @@
     let selectedStake = 10;
     const COMMISSION_RATE = 0.10;
 
-   // dynamic በሆነ መንገድ የ Render/Telegram Domainን ይወስዳል
-     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-     const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws/bingo/`);  
-    socket.onopen = () => {
-        document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
-        document.getElementById('timerBox').style.backgroundColor = '#4338ca';
+   // Render WebSocket Connection
+const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
+
+socket.onopen = () => {
+    document.getElementById('timerBox').innerText = "ከጨዋታው ክፍለ-ጊዜ ጋር ተገናኝቷል!";
+    document.getElementById('timerBox').style.backgroundColor = '#4338ca';
 
         // ለሰርቨሩ ምዝገባ መላክ
         socket.send(JSON.stringify({
