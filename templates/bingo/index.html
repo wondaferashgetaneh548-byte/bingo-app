@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amharic Bingo Game - Fixed Auto Highlight</title>
+    <title>Bingo Game - Live Highlight Fixed</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -41,8 +41,9 @@
             flex: 1; height: 20px; background: #312e81; color: #a5b4fc; font-size: 10px;
             display: flex; align-items: center; justify-content: center; border-radius: 3px; font-weight: bold;
         }
+        /* ⚡ Master Board ቀይ እና አረንጓዴ እንዲበራ */
         .board-num.called { background: #ef4444 !important; color: white !important; }
-        .board-num.active { background: #10b981 !important; color: white !important; font-weight: bold; }
+        .board-num.active { background: #10b981 !important; color: white !important; font-weight: bold; font-size: 12px; }
 
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px 0; }
         .cell {
@@ -52,7 +53,7 @@
         }
         .cell.header { background-color: #4338ca; color: white; font-size: 20px; cursor: default; }
         
-        /* ⚡ በካርቴላው ላይ የወጣው ቁጥር በግልጽ እንዲበራ የሚደረግበት Style */
+        /* ⚡ በካርቴላው ላይ የወጣው ቁጥር ቀይ ሆኖ እንዲበራ */
         .cell.marked { 
             background: #ef4444 !important; 
             color: white !important; 
@@ -196,17 +197,17 @@
         startSelectionCountdown(45);
     };
 
+    // ⚡ ሰርቨሩ በየአይነቱ Data ቢያስገባ እንዲያነብ የተስተካከለ onmessage
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log("WebSocket Received:", data);
 
-        if (data.action === 'start_card_selection') {
-            startSelectionCountdown(data.duration || 45);
-        }
+        // ሰርቨሩ number, called_number ወይም new_number ብሎ ሊልክ ይችላል
+        let rawNum = data.number || data.called_number || data.new_number;
 
-        if (data.action === 'new_number') {
-            if (isGameEnded || isSelectionPhase) return;
+        if (rawNum !== undefined && !isGameEnded && !isSelectionPhase) {
+            let num = parseInt(rawNum);
 
-            let num = parseInt(data.number);
             if (!calledNumbersList.includes(num)) {
                 calledNumbersList.push(num);
             }
@@ -224,7 +225,7 @@
                 currentElem.classList.add('active');
             }
 
-            // 3. ⚡ በካርቴላው ላይ ያለውን ቁጥር ወዲያውኑ ቀይ ማድረግ (ማብራት)
+            // 3. ⚡ በካርቴላው ላይ ያለውን ቁጥር ወዲያውኑ ቀይ ማድረግ
             autoMarkNumber(num);
 
             playNumberAudio(num); 
@@ -361,7 +362,7 @@
         updateStakeDisplay();
     });
 
-    // ⚡ የተስተካከለው autoMarkNumber Function
+    // ⚡ በካርቴላው ላይ ያለውን ቁጥር መርጦ ቀይ የሚያደርገው ተግባር
     function autoMarkNumber(calledNum) {
         const grid = document.getElementById('bingoGrid');
         if (!grid) return;
@@ -422,10 +423,8 @@
                 } else {
                     let num = cardData[col][r];
                     cell.innerText = num;
-                    // ⚡ attribute አቀማመጥ እዚህ ጋር አስተካክለነዋል
                     cell.setAttribute('data-raw-number', num);
                     
-                    // ከዚህ ቀደም የተጠራ ቁጥር ከሆነ ወዲያውኑ ቀይ ሆኖ እንዲታይ
                     if (calledNumbersList.includes(parseInt(num))) {
                         cell.classList.add('marked');
                     }
