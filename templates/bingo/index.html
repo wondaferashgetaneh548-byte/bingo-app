@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Game - Admin Commission & Auto-Payout</title>
+    <title>Bingo Game - Telegram WebApp Integration</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -13,6 +13,10 @@
         .container {
             max-width: 450px; margin: 0 auto; background: #312e81; padding: 15px;
             border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative;
+        }
+        .user-badge {
+            background: #4f46e5; padding: 6px 12px; border-radius: 20px; font-size: 13px;
+            display: inline-block; margin-bottom: 10px; font-weight: bold; border: 1px solid #818cf8;
         }
         .wallet-box {
             background: #4338ca; padding: 10px; border-radius: 8px; margin-bottom: 12px;
@@ -67,7 +71,6 @@
             border-radius: 6px; cursor: pointer; font-weight: bold;
         }
         
-        /* ⚡ የአድሚን ፓነል በነባሪነት የተሰወረ (Hidden) ነው */
         .admin-panel {
             display: none;
             background: #881337; border: 2px solid #f43f5e; padding: 12px;
@@ -105,9 +108,12 @@
 <body>
 
 <div class="container">
+    <!-- ⚡ የተጫዋቹ የቴሌግራም ስም እዚህ ጋር ይታያል -->
+    <div class="user-badge" id="userInfoDisplay">👤 በመጫን ላይ...</div>
+
     <div class="wallet-box">
         <div>📱 ስልክ ቁጥር: <input type="tel" id="userPhone" value="0911002233"></div>
-        <div>💰 ቀሪ ሂሳብ (Wallet): <span id="userBalance" class="badge">500 ETB</span></div>
+        <div>💰 ቀሪ ሂሳብ: <span id="userBalance" class="badge">500 ETB</span></div>
         
         <div style="margin-top: 8px;">
             <label>🎯 የካርቴላ ዋጋ ይምረጡ:</label>
@@ -146,7 +152,7 @@
         🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
     </button>
 
-    <!-- ⚡ የአድሚን ፓነል (አድሚን ብቻ ያየዋል) -->
+    <!-- ⚡ የአድሚን ፓነል (0986864455 ሲሆን ብቻ ይታያል) -->
     <div class="admin-panel" id="adminPanel">
         <h4>👑 የአድሚን ቁጥጥር ፓነል (0986864455)</h4>
         <div>የተሰበሰበ ኮሚሽን (10%): <span id="adminVault" class="badge">0 ETB</span></div>
@@ -173,14 +179,16 @@
 </div>
 
 <script>
+    // ⚡ 1. Telegram WebApp Auto-Registration / Authentication
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) { tg.ready(); tg.expand(); }
 
     const telegramUser = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
-    const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 1000000);
+    
+    // የቴሌግራም ID እና ስም ካለ በቀጥታ ይወስደዋል፣ ካልሆነ Random ID ይሰጠዋል
+    const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 100000);
     const userName = telegramUser ? (telegramUser.first_name + (telegramUser.last_name ? ' ' + telegramUser.last_name : '')) : "ተጫዋች";
 
-    // ⚡ የአድሚን ስልክ ቁጥር እና Wallet
     const ADMIN_PHONE = "0986864455";
     const COMMISSION_RATE = 0.10;
 
@@ -205,8 +213,6 @@
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log("WebSocket Received:", data);
-
         let rawNum = data.number || data.called_number || data.new_number;
 
         if (rawNum !== undefined && !isGameEnded && !isSelectionPhase) {
@@ -241,7 +247,6 @@
             const prizePool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
             const isMe = data.winner_id === userId;
 
-            // ⚡ አሸናፊው እኔ ከሆንኩ ገንዘቡ በቀጥታ ወደ እኔ Wallet ይገባል
             if (isMe) {
                 playerBalance += prizePool;
                 updateUI();
@@ -299,10 +304,7 @@
         isGameEnded = false;
         calledNumbersList = [];
 
-        // 1. የተጫዋች አካውንት ላይ የካርቴላው ዋጋ ይቀነሳል
         playerBalance -= selectedStake;
-
-        // 2. ⚡ 10% ኮሚሽን በቀጥታ ወደ አድሚን (0986864455) Wallet ይገባል
         const commission = selectedStake * COMMISSION_RATE;
         adminVault += commission;
 
@@ -320,7 +322,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const isAdminQuery = urlParams.get('admin') === 'true';
 
-        // ስልኩ የ 0986864455 ከሆነ ወይም URL ላይ ?admin=true ካለ የአድሚን ፓነል ይታያል
         if (currentPhone === ADMIN_PHONE || isAdminQuery) {
             document.getElementById('adminPanel').style.display = 'block';
         } else {
@@ -381,6 +382,9 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+        // የተጫዋቹን ስም እና Telegram ID በስክሪኑ ላይ ማሳየት
+        document.getElementById('userInfoDisplay').innerText = `👤 ${userName} (ID: ${userId})`;
+
         createMasterBoard();
         renderCard(1);
         updateStakeDisplay();
@@ -499,7 +503,6 @@
             isGameEnded = true;
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
-            // 90% የፑል ሽልማት
             let prizePool = selectedStake * (1 - COMMISSION_RATE);
 
             socket.send(JSON.stringify({
