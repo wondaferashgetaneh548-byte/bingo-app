@@ -8,7 +8,8 @@ class BingoConsumer(AsyncWebsocketConsumer):
     rooms = {}
 
     async def connect(self):
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        # KeyError እንዳይፈጠር get() በመጠቀም default room 'default' ይሰጠዋል
+        self.room_name = self.scope['url_route']['kwargs'].get('room_name', 'default')
         self.room_group_name = f'bingo_{self.room_name}'
 
         if self.room_name not in self.rooms:
