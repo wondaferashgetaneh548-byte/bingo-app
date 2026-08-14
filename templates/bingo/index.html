@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Game - Live Highlight Fixed</title>
+    <title>Bingo Game - Admin Commission & Auto-Payout</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -41,7 +41,6 @@
             flex: 1; height: 20px; background: #312e81; color: #a5b4fc; font-size: 10px;
             display: flex; align-items: center; justify-content: center; border-radius: 3px; font-weight: bold;
         }
-        /* ⚡ Master Board ቀይ እና አረንጓዴ እንዲበራ */
         .board-num.called { background: #ef4444 !important; color: white !important; }
         .board-num.active { background: #10b981 !important; color: white !important; font-weight: bold; font-size: 12px; }
 
@@ -53,7 +52,6 @@
         }
         .cell.header { background-color: #4338ca; color: white; font-size: 20px; cursor: default; }
         
-        /* ⚡ በካርቴላው ላይ የወጣው ቁጥር ቀይ ሆኖ እንዲበራ */
         .cell.marked { 
             background: #ef4444 !important; 
             color: white !important; 
@@ -68,10 +66,14 @@
             padding: 8px 16px; background: #4f46e5; color: white; border: none;
             border-radius: 6px; cursor: pointer; font-weight: bold;
         }
+        
+        /* ⚡ የአድሚን ፓነል በነባሪነት የተሰወረ (Hidden) ነው */
         .admin-panel {
+            display: none;
             background: #881337; border: 2px solid #f43f5e; padding: 12px;
             border-radius: 10px; margin-top: 20px; text-align: left;
         }
+
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(88, 2, 2, 0.95); z-index: 2000; justify-content: center;
@@ -105,7 +107,7 @@
 <div class="container">
     <div class="wallet-box">
         <div>📱 ስልክ ቁጥር: <input type="tel" id="userPhone" value="0911002233"></div>
-        <div>💰 ቀሪ ሂሳብ: <span id="userBalance" class="badge">500 ETB</span></div>
+        <div>💰 ቀሪ ሂሳብ (Wallet): <span id="userBalance" class="badge">500 ETB</span></div>
         
         <div style="margin-top: 8px;">
             <label>🎯 የካርቴላ ዋጋ ይምረጡ:</label>
@@ -144,8 +146,9 @@
         🏆 ቢንጎ በል! (<span id="btnStakePrice">10</span> ETB)
     </button>
 
-    <div class="admin-panel">
-        <h4>👑 የአድሚን ቁጥጥር ፓነል</h4>
+    <!-- ⚡ የአድሚን ፓነል (አድሚን ብቻ ያየዋል) -->
+    <div class="admin-panel" id="adminPanel">
+        <h4>👑 የአድሚን ቁጥጥር ፓነል (0986864455)</h4>
         <div>የተሰበሰበ ኮሚሽን (10%): <span id="adminVault" class="badge">0 ETB</span></div>
         <h5>📥 የገባ የገንዘብ ጥያቄዎች:</h5>
         <ul id="requestList" style="padding-left: 15px; font-size: 12px;">
@@ -177,6 +180,10 @@
     const userId = telegramUser ? telegramUser.id.toString() : "user_" + Math.floor(Math.random() * 1000000);
     const userName = telegramUser ? (telegramUser.first_name + (telegramUser.last_name ? ' ' + telegramUser.last_name : '')) : "ተጫዋች";
 
+    // ⚡ የአድሚን ስልክ ቁጥር እና Wallet
+    const ADMIN_PHONE = "0986864455";
+    const COMMISSION_RATE = 0.10;
+
     let currentCardNo = 1;
     let calledNumbersList = [];
     let isGameEnded = false;
@@ -187,7 +194,6 @@
     let playerBalance = 500;
     let adminVault = 0;
     let selectedStake = 10;
-    const COMMISSION_RATE = 0.10;
 
     const socket = new WebSocket('wss://bingo-app-1-91no.onrender.com/ws/bingo/');
 
@@ -197,12 +203,10 @@
         startSelectionCountdown(45);
     };
 
-    // ⚡ ሰርቨሩ በየአይነቱ Data ቢያስገባ እንዲያነብ የተስተካከለ onmessage
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("WebSocket Received:", data);
 
-        // ሰርቨሩ number, called_number ወይም new_number ብሎ ሊልክ ይችላል
         let rawNum = data.number || data.called_number || data.new_number;
 
         if (rawNum !== undefined && !isGameEnded && !isSelectionPhase) {
@@ -212,22 +216,18 @@
                 calledNumbersList.push(num);
             }
 
-            // 1. Master Board ላይ የቀደሙትን ቀይ ማድረግ
             let activeElems = document.querySelectorAll('.board-num.active');
             activeElems.forEach(el => {
                 el.classList.remove('active');
                 el.classList.add('called');
             });
 
-            // 2. Master Board ላይ አዲሱን አረንጓዴ ማድረግ
             let currentElem = document.getElementById(`mb-${num}`);
             if (currentElem) {
                 currentElem.classList.add('active');
             }
 
-            // 3. ⚡ በካርቴላው ላይ ያለውን ቁጥር ወዲያውኑ ቀይ ማድረግ
             autoMarkNumber(num);
-
             playNumberAudio(num); 
             checkBingoWin(true);
         }
@@ -238,15 +238,21 @@
 
             const winningCard = data.winning_card_no || currentCardNo;
             const winner = data.winner_name || "አንድ ተጫዋች";
-            const pool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
+            const prizePool = data.prize_pool || (selectedStake * (1 - COMMISSION_RATE));
             const isMe = data.winner_id === userId;
 
-            document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ ካርቴላ ቁጥር፡ ${winningCard}`;
+            // ⚡ አሸናፊው እኔ ከሆንኩ ገንዘቡ በቀጥታ ወደ እኔ Wallet ይገባል
+            if (isMe) {
+                playerBalance += prizePool;
+                updateUI();
+            }
+
+            document.getElementById('timerBox').innerText = `ጨዋታው ተጠናቋል! አሸናፊ፡ ${winner} (ካርቴላ #${winningCard})`;
             document.getElementById('timerBox').style.backgroundColor = '#ef4444';
 
             showResultModal(
                 isMe ? "አሸንፈዋል!" : "ሌላ ተጫዋች አሸንፏል!",
-                `${pool} ETB`,
+                `${prizePool} ETB`,
                 `${winner} (ካርቴላ #${winningCard})`,
                 winningCard
             );
@@ -293,14 +299,32 @@
         isGameEnded = false;
         calledNumbersList = [];
 
+        // 1. የተጫዋች አካውንት ላይ የካርቴላው ዋጋ ይቀነሳል
         playerBalance -= selectedStake;
-        adminVault += (selectedStake * COMMISSION_RATE);
+
+        // 2. ⚡ 10% ኮሚሽን በቀጥታ ወደ አድሚን (0986864455) Wallet ይገባል
+        const commission = selectedStake * COMMISSION_RATE;
+        adminVault += commission;
+
         updateUI();
 
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ 
                 action: 'start_drawing_numbers' 
             }));
+        }
+    }
+
+    function checkAdminAccess() {
+        const currentPhone = document.getElementById('userPhone').value.trim();
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdminQuery = urlParams.get('admin') === 'true';
+
+        // ስልኩ የ 0986864455 ከሆነ ወይም URL ላይ ?admin=true ካለ የአድሚን ፓነል ይታያል
+        if (currentPhone === ADMIN_PHONE || isAdminQuery) {
+            document.getElementById('adminPanel').style.display = 'block';
+        } else {
+            document.getElementById('adminPanel').style.display = 'none';
         }
     }
 
@@ -360,9 +384,11 @@
         createMasterBoard();
         renderCard(1);
         updateStakeDisplay();
+        checkAdminAccess();
+
+        document.getElementById('userPhone').addEventListener('input', checkAdminAccess);
     });
 
-    // ⚡ በካርቴላው ላይ ያለውን ቁጥር መርጦ ቀይ የሚያደርገው ተግባር
     function autoMarkNumber(calledNum) {
         const grid = document.getElementById('bingoGrid');
         if (!grid) return;
@@ -473,9 +499,8 @@
             isGameEnded = true;
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
+            // 90% የፑል ሽልማት
             let prizePool = selectedStake * (1 - COMMISSION_RATE);
-            playerBalance += prizePool;
-            updateUI();
 
             socket.send(JSON.stringify({
                 action: 'claim_bingo',
