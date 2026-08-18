@@ -8,10 +8,17 @@ class BingoConsumer(AsyncWebsocketConsumer):
     is_timer_running = False
     is_game_active = False
     countdown_seconds = 45
+    taken_cards = {}  # {'card_no': 'username'}
 
     async def connect(self):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+
+        # አዲስ ተጫዋች ሲገባ የተያዙ ካርቴላዎችን መረጃ ይላክለታል
+        await self.send(text_data=json.dumps({
+            'action': 'room_state',
+            'taken_cards': BingoConsumer.taken_cards
+        }))
 
         # የመጀመሪያው ተጫዋች ሲገባ የ 45 ሰከንድ ቆጠራው ይጀምራል
         if not BingoConsumer.is_timer_running and not BingoConsumer.is_game_active:
@@ -25,7 +32,24 @@ class BingoConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         action = data.get('action')
 
-        if action == 'claim_bingo':
+        # 1. ተጫዋች ካርቴላ ሲመርጥ
+        if action == 'select_card':
+            card_no = str(data.get('card_no'))
+            username = data.get('username')
+
+            BingoConsumer.taken_cards[card_no] = username
+            
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'card_selected_broadcast',
+                    'card_no': card_no,
+                    'username': username
+                }
+            )
+
+        # 2. ተጫዋች ቢንጎ ሲል
+        elif action == 'claim_bingo':
             BingoConsumer.is_game_active = False
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -60,19 +84,17 @@ class BingoConsumer(AsyncWebsocketConsumer):
             {'type': 'start_game_all'}
         )
 
-        # ⚡ 45 ሰከንዱ ሲያልቅ ቁጥሮችን በየ 3 ሰከንዱ መጥራት ይጀምራል
+        # ጨዋታው ሲጀምር ቁጥሮችን መጥራት ይጀምራል
         asyncio.create_task(self.call_bingo_numbers())
 
     async def call_bingo_numbers(self):
-        # ከ 1 እስከ 75 ያሉ ቁጥሮችን በዘፈቀደ (Random) ማደባለቅ
         numbers = list(range(1, 76))
         random.shuffle(numbers)
 
         for num in numbers:
             if not BingoConsumer.is_game_active:
-                break # አንድ ሰው አሸንፎ ጨዋታው ካለቀ ቁጥር መጥራቱን ያቆማል
+                break
 
-            # ቁጥሩን ለሁሉም ተጫዋቾች ይልካል
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -80,7 +102,6 @@ class BingoConsumer(AsyncWebsocketConsumer):
                     'number': num
                 }
             )
-            # በየ 3 ሰከንዱ አዲስ ቁጥር ይጠራል
             await asyncio.sleep(3)
 
     async def timer_update(self, event):
@@ -92,6 +113,13 @@ class BingoConsumer(AsyncWebsocketConsumer):
     async def start_game_all(self, event):
         await self.send(text_data=json.dumps({
             'action': 'game_started'
+        }))
+
+    async def card_selected_broadcast(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'card_selected_broadcast',
+            'card_no': event['card_no'],
+            'username': event['username']
         }))
 
     async def broadcast_number(self, event):
