@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ</title>
+    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ (400 ካርቴላ)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -55,46 +55,61 @@
         }
 
         .cartela-section {
-            margin-top: 30px;
+            margin-top: 20px;
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
             text-align: center;
         }
 
+        /* 400 ካርቴላዎች በስክሪኑ ላይ እንዳይረዝሙ Scrollable የተደረገ Box */
         .cartela-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-            padding: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            margin-top: 15px;
+            padding: 15px;
+            max-height: 520px;
+            overflow-y: auto;
+            background: #16213e;
+            border-radius: 10px;
+            border: 1px solid #0f3460;
+        }
+
+        /* Scrollbar Styling */
+        .cartela-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+        .cartela-grid::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 4px;
         }
 
         .cartela-btn {
             background-color: #0f3460;
             color: #ffffff;
-            border: 2px solid #e94560;
-            padding: 20px 10px;
-            font-size: 18px;
+            border: 1px solid #e94560;
+            padding: 12px 5px;
+            font-size: 14px;
             font-weight: bold;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 3px;
         }
 
         .cartela-btn:hover:not(:disabled) {
             background-color: #e94560;
-            transform: translateY(-3px);
+            transform: translateY(-2px);
         }
 
         .cartela-btn:disabled {
-            background-color: #333344;
-            border-color: #555566;
-            color: #888888;
+            background-color: #222233;
+            border-color: #444455;
+            color: #777788;
             cursor: not-allowed;
             transform: none;
         }
@@ -106,10 +121,14 @@
         }
 
         .player-badge {
-            font-size: 12px;
-            background: rgba(0,0,0,0.4);
-            padding: 2px 6px;
-            border-radius: 4px;
+            font-size: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 4px;
+            border-radius: 3px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -124,10 +143,10 @@
     </div>
 
     <div class="cartela-section">
-        <h3>ካርቴላ ይምረጡ (ከ1 - 20)</h3>
+        <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
         <div class="cartela-grid" id="cartela-container">
-            <!-- 20 ካርቴላዎች -->
-            {% for i in "x"|rjust:"20" %}
+            <!-- 400 ካርቴላዎች በDjango Loop ይፈጠራሉ -->
+            {% for i in "x"|rjust:"400" %}
                 <button class="cartela-btn" id="cartela-{{ forloop.counter }}" onclick="holdCartela({{ forloop.counter }})">
                     <span>ካርቴላ #{{ forloop.counter }}</span>
                 </button>
@@ -136,7 +155,6 @@
     </div>
 
     <script>
-        // የክፍሉ ስም ከURL ወይም ከTemplate እንደ አስፈላጊነቱ መውሰድ ይቻላል
         const roomName = "room1"; 
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/${roomName}/`);
@@ -151,40 +169,34 @@
         socket.onmessage = function(e) {
             const data = JSON.parse(e.data);
 
-            // 1. ለመጀመሪያ ጊዜ ሲገባ ክፍሉ ያለበትን ስቴት መውሰድ
             if (data.type === 'room_state') {
                 if (data.status === 'PLAYING') {
                     lockGame("ጨዋታው ተጀምሯል! አዲስ ካርቴላ መያዝ አይቻልም።");
                 }
-                // ቀደሞ የተያዙ ካርቴላዎችን ማሳየት
                 for (const [player, cartelaId] of Object.entries(data.players)) {
                     updateCartelaUI(cartelaId, player);
                 }
             }
 
-            // 2. የ 45 ሰከንድ ቆጠራ ማሳያ
             if (data.type === 'timer') {
                 timerDisplay.innerText = `${data.time_left} ሰከንድ`;
                 statusDisplay.innerText = "ካርቴላ መያዣ ጊዜው ሳያልቅ ይምረጡ";
             }
 
-            // 3. በሌላ ተጫዋች ወይም በራስህ ካርቴላ ሲያዝ
             if (data.type === 'cartela_selected') {
                 updateCartelaUI(data.cartela_id, data.player_name);
             }
 
-            // 4. 45 ሰከንዱ ሲያልቅ ጨዋታውን መቆለፍ
             if (data.type === 'game_started') {
                 lockGame("ጊዜው አልቋል! ጨዋታው ተጀምሯል።");
             }
         };
 
         socket.onclose = function() {
-            statusDisplay.innerText = "ግንኙነቱ ተቋርጧል። እባክዎን ገጹን Refresh ያድርጉ።";
+            statusDisplay.innerText = "ግንኙነቱ ተቋርጧል። ገጹን Refresh ያድርጉ።";
             disableAllCartelas();
         };
 
-        // ካርቴላ መያዣ መልዕክት ወደ ሴርቨር መላክ
         function holdCartela(cartelaId) {
             socket.send(JSON.stringify({
                 'action': 'select_cartela',
@@ -192,7 +204,6 @@
             }));
         }
 
-        // የተያዘን ካርቴላ UI ላይ Red ማድረግ
         function updateCartelaUI(cartelaId, playerName) {
             const btn = document.getElementById(`cartela-${cartelaId}`);
             if (btn) {
@@ -205,7 +216,6 @@
             }
         }
 
-        // ጨዋታው ሲጀምር ሁሉንም ቁልፎች መቆለፍ
         function lockGame(message) {
             timerDisplay.innerText = "0 ሰከንድ";
             statusDisplay.innerText = message;
