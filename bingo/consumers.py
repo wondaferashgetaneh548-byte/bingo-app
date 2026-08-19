@@ -1,5 +1,6 @@
 import json
 import asyncio
+import random
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 # በሜሞሪ ውስጥ የRoom ሁኔታዎችን መያዣ
@@ -9,10 +10,11 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
 
-        # 1. ተጫዋቹ Login ካላደረገ Connection ውድቅ ይደረጋል
+        # ተጫዋቹ Login ካላደረገ ጊዜያዊ Guest ID መስጠት (ግንኙነቱ እንዳይዘጋ)
         if not self.user.is_authenticated:
-            await self.close()
-            return
+            self.username = f"Guest_{random.randint(100, 999)}"
+        else:
+            self.username = self.user.username
 
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'bingo_{self.room_name}'
@@ -34,7 +36,7 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             'type': 'room_state',
             'status': ROOMS[self.room_name]['status'],
             'timer': ROOMS[self.room_name]['timer'],
-                'players': ROOMS[self.room_name]['players']
+            'players': ROOMS[self.room_name]['players']
         }))
 
         # ቆጠራው ካልጀመረ መጀመር
@@ -52,11 +54,11 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             # 45 ሰከንዱ ካላለቀና ክፍሉ በ WAITING ላይ ከሆነ ብቻ
             if ROOMS[self.room_name]['status'] == 'WAITING':
                 try:
-                    cartela_id = int(data.get('cartela_id')) # int መሆኑን ማረጋገጥ
+                    cartela_id = int(data.get('cartela_id'))
                 except (ValueError, TypeError):
                     return
 
-                username = self.user.username
+                username = self.username
 
                 # ካርቴላው በሌላ ሰው አለመያዙን ማረጋገጥ
                 if cartela_id not in ROOMS[self.room_name]['players'].values():

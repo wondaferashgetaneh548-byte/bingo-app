@@ -2,105 +2,259 @@
 <html lang="am">
 <head>
     <meta charset="UTF-8">
-    <title>Bingo Game Room</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ (400 ካርቴላ)</title>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .user-info {
+            font-size: 18px;
+            color: #4ecca3;
+            margin-bottom: 10px;
+        }
+
+        .timer-card {
+            background: #16213e;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            border: 2px solid #0f3460;
+        }
+
+        .timer-text {
+            font-size: 28px;
+            font-weight: bold;
+            color: #e94560;
+        }
+
+        .status-msg {
+            font-size: 16px;
+            color: #bbbbbb;
+            margin-top: 5px;
+        }
+
+        .cartela-section {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+        }
+
         .cartela-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            max-width: 500px;
-            margin-top: 20px;
-        }
-        .cartela-btn {
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            margin-top: 15px;
             padding: 15px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
+            max-height: 520px;
+            overflow-y: auto;
+            background: #16213e;
+            border-radius: 10px;
+            border: 1px solid #0f3460;
         }
-        .cartela-btn:disabled {
-            background-color: #d32f2f;
-            cursor: not-allowed;
+
+        .cartela-grid::-webkit-scrollbar {
+            width: 8px;
         }
-        #timer-display {
-            font-size: 24px;
+        .cartela-grid::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 4px;
+        }
+
+        .cartela-btn {
+            background-color: #0f3460;
+            color: #ffffff;
+            border: 1px solid #e94560;
+            padding: 12px 5px;
+            font-size: 14px;
             font-weight: bold;
-            color: #ff9800;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .cartela-btn:hover:not(:disabled) {
+            background-color: #e94560;
+            transform: translateY(-2px);
+        }
+
+        .cartela-btn:disabled {
+            background-color: #222233;
+            border-color: #444455;
+            color: #777788;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cartela-btn.occupied {
+            background-color: #d9534f;
+            border-color: #d9534f;
+            color: #ffffff;
+        }
+
+        .cartela-btn.my-cartela {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #ffffff;
+        }
+
+        .player-badge {
+            font-size: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 4px;
+            border-radius: 3px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body>
 
-    <h2>እንኳን ደህና መጡ, {{ request.user.username }}!</h2>
-    <div id="timer-display">የ 45 ሰከንድ ቆጠራ በመጠበቅ ላይ...</div>
+    <div class="header">
+        <div class="user-info">ተጫዋች፦ <strong id="current-user">{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}Guest{% endif %}</strong></div>
+        <div class="timer-card">
+            <div id="timer-display" class="timer-text">--</div>
+            <div id="status-display" class="status-msg">ከክፍሉ ጋር በመገናኘት ላይ...</div>
+        </div>
+    </div>
 
-    <h3>ካርቴላ ይምረጡ፡</h3>
-    <div class="cartela-grid" id="cartela-container">
-        <!-- ለምሳሌ 400 ካርቴላዎች -->
-        {% for i in "x"|rjust:"400" %}
-            <button class="cartela-btn" id="cartela-{{ forloop.counter }}" onclick="selectCartela({{ forloop.counter }})">
-                ካርቴላ #{{ forloop.counter }}
-            </button>
-        {% endfor %}
+    <div class="cartela-section">
+        <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
+        <div class="cartela-grid" id="cartela-container"></div>
     </div>
 
     <script>
-        const roomName = "room1"; // የክፍሉ ስም
+        let currentUser = document.getElementById('current-user').innerText.trim();
+        const container = document.getElementById('cartela-container');
+        container.innerHTML = ''; 
+
+        // 1. 400 ካርቴላዎችን ማፍለቅ
+        for (let i = 1; i <= 400; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'cartela-btn';
+            btn.id = `cartela-${i}`;
+            btn.onclick = () => holdCartela(i);
+            btn.innerHTML = `<span>ካርቴላ #${i}</span>`;
+            container.appendChild(btn);
+        }
+
+        // 2. WebSocket ማዋቀሪያ
+        const roomName = "room1"; 
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/${roomName}/`);
+
+        const timerDisplay = document.getElementById('timer-display');
+        const statusDisplay = document.getElementById('status-display');
+
+        socket.onopen = function() {
+            statusDisplay.innerText = "ካርቴላ ይምረጡ!";
+        };
 
         socket.onmessage = function(e) {
             const data = JSON.parse(e.data);
 
-            // 1. የመጀመሪያ የክፍሉ ስቴት መረጃ
             if (data.type === 'room_state') {
                 if (data.status === 'PLAYING') {
-                    document.getElementById('timer-display').innerText = "ጨዋታው ተጀምሯል! አዲስ ካርቴላ መያዝ አይቻልም።";
-                    disableAllCartelas();
+                    lockGame("ጨዋታው ተጀምሯል! አዲስ ካርቴላ መያዝ አይቻልም።");
                 }
-                // ቀደም ሲል የተያዙ ካርቴላዎችን ማሳየት
                 for (const [player, cartelaId] of Object.entries(data.players)) {
-                    markCartelaAsTaken(cartelaId, player);
+                    updateCartelaUI(cartelaId, player);
                 }
             }
 
-            // 2. የቆጠራ ሰከንድ ማሳያ
             if (data.type === 'timer') {
-                document.getElementById('timer-display').innerText = `ጨዋታው ለመጀመር: ${data.time_left} ሰከንድ ቀረ`;
+                timerDisplay.innerText = `${data.time_left} ሰከንድ`;
+                statusDisplay.innerText = "ካርቴላ መያዣ ጊዜው ሳያልቅ ይምረጡ";
             }
 
-            // 3. በሌላ ተጫዋች ወይም በራስህ ካርቴላ ሲያዝ
             if (data.type === 'cartela_selected') {
-                markCartelaAsTaken(data.cartela_id, data.player_name);
+                updateCartelaUI(parseInt(data.cartela_id), data.player_name);
             }
 
-            // 4. 45 ሰከንዱ ሲያልቅ
             if (data.type === 'game_started') {
-                document.getElementById('timer-display').innerText = "ጊዜው አብቅቷል! ጨዋታው ተጀምሯል።";
-                disableAllCartelas();
+                lockGame("ጊዜው አልቋል! ጨዋታው ተጀምሯል።");
             }
         };
 
-        // ካርቴላ ለመያዝ ወደ Backend መላክ
-        function selectCartela(cartelaId) {
+        socket.onclose = function() {
+            statusDisplay.innerText = "ግንኙነቱ ተቋርጧል። ገጹን Refresh ያድርጉ።";
+            disableAllCartelas();
+        };
+
+        function holdCartela(cartelaId) {
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert("ከሰርቨሩ ጋር አልተገናኘህም። እባክህ ገጹን Refresh አድርግ!");
+                return;
+            }
             socket.send(JSON.stringify({
                 'action': 'select_cartela',
                 'cartela_id': cartelaId
             }));
         }
 
-        // የተያዘን ካርቴላ UI ላይ Red ማድረግ
-        function markCartelaAsTaken(cartelaId, playerName) {
+        function updateCartelaUI(cartelaId, playerName) {
+            // ተጫዋቹ ቀደም ብሎ የያዘው ካርቴላ ካለ ማፅዳት
+            const existingBadges = document.querySelectorAll('.player-badge');
+            existingBadges.forEach(badge => {
+                if (badge.innerText.includes(`(${playerName})`)) {
+                    const oldBtn = badge.parentElement;
+                    const oldId = oldBtn.id.replace('cartela-', '');
+                    oldBtn.disabled = false;
+                    oldBtn.className = 'cartela-btn';
+                    oldBtn.innerHTML = `<span>ካርቴላ #${oldId}</span>`;
+                }
+            });
+
+            // አዲሱን ካርቴላ መያዝ
             const btn = document.getElementById(`cartela-${cartelaId}`);
             if (btn) {
                 btn.disabled = true;
-                btn.innerText = `ተይዟል (${playerName})`;
+                if (playerName === currentUser) {
+                    btn.className = 'cartela-btn my-cartela';
+                } else {
+                    btn.className = 'cartela-btn occupied';
+                }
+                btn.innerHTML = `
+                    <span>ካርቴላ #${cartelaId}</span>
+                    <span class="player-badge">ተይዟል (${playerName})</span>
+                `;
             }
         }
 
-        // ሁሉንም ካርቴላዎች መቆለፍ
+        function lockGame(message) {
+            timerDisplay.innerText = "0 ሰከንድ";
+            statusDisplay.innerText = message;
+            disableAllCartelas();
+        }
+
         function disableAllCartelas() {
             const buttons = document.querySelectorAll('.cartela-btn');
             buttons.forEach(btn => btn.disabled = true);
