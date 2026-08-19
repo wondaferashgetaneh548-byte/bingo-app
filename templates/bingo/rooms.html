@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ</title>
+    <title>የቢንጎ ጨዋታ በብር</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #1a1a2e; color: #ffffff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+        
+        /* የብር መጠን መምረጫ Styles */
+        .stake-selector { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        .stake-btn { background: #0f3460; color: #4ecca3; border: 2px solid #4ecca3; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; text-decoration: none; transition: 0.3s; }
+        .stake-btn:hover { background: #4ecca3; color: #1a1a2e; }
+
+        /* የሽልማት ማሳያ Card */
+        .pot-card { background: #16213e; border: 2px solid #ffb703; color: #ffb703; padding: 12px 25px; border-radius: 10px; font-size: 20px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+        .commission-note { font-size: 13px; color: #aaa; margin-top: 3px; }
+
         .header { text-align: center; margin-bottom: 15px; }
         .user-info { font-size: 18px; color: #4ecca3; margin-bottom: 10px; }
         .timer-card { background: #16213e; padding: 15px 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; border: 2px solid #0f3460; }
@@ -31,26 +41,27 @@
         .cartela-btn.my-cartela { background-color: #28a745; border-color: #28a745; color: #ffffff; }
         .player-badge { font-size: 10px; background: rgba(0,0,0,0.5); padding: 2px 4px; border-radius: 3px; }
 
-        /* አሸናፊነትን የሚያሳየው Banner/Alert */
-        .winner-banner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #28a745;
-            color: white;
-            padding: 30px 50px;
-            border-radius: 15px;
-            font-size: 28px;
-            font-weight: bold;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(0,255,0,0.6);
-            z-index: 1000;
-        }
+        /* የአሸናፊነት Pop-up Banner */
+        .winner-banner { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #28a745; color: white; padding: 30px 50px; border-radius: 15px; font-size: 24px; font-weight: bold; text-align: center; box-shadow: 0 0 30px rgba(0,255,0,0.6); z-index: 1000; }
     </style>
 </head>
 <body>
+
+    <!-- የብር መጠን መምረጫ -->
+    <div class="stake-selector">
+        <a href="/bingo/room_10/" class="stake-btn">10 ETB</a>
+        <a href="/bingo/room_20/" class="stake-btn">20 ETB</a>
+        <a href="/bingo/room_30/" class="stake-btn">30 ETB</a>
+        <a href="/bingo/room_100/" class="stake-btn">100 ETB</a>
+        <a href="/bingo/room_200/" class="stake-btn">200 ETB</a>
+        <a href="/bingo/room_300/" class="stake-btn">300 ETB</a>
+    </div>
+
+    <!-- የጠቅላላ ሽልማት ድምር -->
+    <div class="pot-card">
+        🏆 የአሸናፊው ሽልማት (70%)፦ <span id="winner-pot-amount">0</span> ETB
+        <div class="commission-note">(ጠቅላላ ባንክ፦ <span id="total-pot-amount">0</span> ETB | የሲስተም ኮሚሽን 30%፦ <span id="commission-amount">0</span> ETB)</div>
+    </div>
 
     <div class="header">
         <div class="user-info">ተጫዋች፦ <strong id="current-user">{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}Guest{% endif %}</strong></div>
@@ -60,10 +71,10 @@
         </div>
     </div>
 
-    <!-- አሸናፊነት ማስታወቂያ Pop-up -->
+    <!-- አሸናፊነት ማስታወቂያ Banner -->
     <div id="winner-banner" class="winner-banner"></div>
 
-    <!-- 1. የወጡ ቁጥሮች ማሳያ -->
+    <!-- የወጡ ቁጥሮች ማሳያ -->
     <div id="game-play-area" class="game-play-area">
         <h3>የወጣ ቁጥር</h3>
         <div id="current-number" class="current-number">--</div>
@@ -71,7 +82,7 @@
         <div id="drawn-list" class="drawn-list"></div>
     </div>
 
-    <!-- 2. የተመረጠው የኔ 5x5 ካርቴላ -->
+    <!-- የተመረጠው የኔ ካርቴላ -->
     <div id="my-cartela-container" class="my-cartela-container">
         <h3 id="my-cartela-title" style="color: #4ecca3;">የእርስዎ ካርቴላ</h3>
         <table class="bingo-table">
@@ -82,7 +93,7 @@
         </table>
     </div>
 
-    <!-- 3. የካርቴላ መምረጫ Grid -->
+    <!-- የካርቴላ መምረጫ Grid -->
     <div class="cartela-section" id="selection-section">
         <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
         <div class="cartela-grid" id="cartela-container"></div>
@@ -105,7 +116,10 @@
         }
         buildSelectionGrid();
 
-        const roomName = "room1"; 
+        // የክፍሉን ስም ከ URL መውሰድ (ለምሳሌ /bingo/room_20/ ከሆነ "room_20" ይወሰዳል)
+        const pathSegments = window.location.pathname.split('/').filter(Boolean);
+        const roomName = pathSegments[pathSegments.length - 1] || "room_10"; 
+
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/${roomName}/`);
 
@@ -120,6 +134,10 @@
         const winnerBanner = document.getElementById('winner-banner');
         const selectionSection = document.getElementById('selection-section');
 
+        const winnerPotDisplay = document.getElementById('winner-pot-amount');
+        const totalPotDisplay = document.getElementById('total-pot-amount');
+        const commissionDisplay = document.getElementById('commission-amount');
+
         socket.onopen = function() {
             statusDisplay.innerText = "ካርቴላ ይምረጡ!";
         };
@@ -128,6 +146,7 @@
             const data = JSON.parse(e.data);
 
             if (data.type === 'room_state') {
+                updatePotUI(data.total_pot, data.winner_pot, data.commission);
                 if (data.status === 'PLAYING') {
                     lockGame("ጨዋታው ተጀምሯል!");
                 }
@@ -147,6 +166,7 @@
 
             if (data.type === 'cartela_selected') {
                 updateCartelaUI(parseInt(data.cartela_id), data.player_name);
+                updatePotUI(data.total_pot, data.winner_pot, data.commission);
             }
 
             if (data.type === 'game_started') {
@@ -160,12 +180,16 @@
             }
 
             if (data.type === 'game_over') {
-                winnerBanner.innerHTML = `🎉 BINGO! 🎉<br>አሸናፊ፦ ${data.winner_name} (ካርቴላ #${data.cartela_id})`;
+                winnerBanner.innerHTML = `
+                    🎉 BINGO! 🎉<br>
+                    አሸናፊ፦ ${data.winner_name} (ካርቴላ #${data.cartela_id})<br>
+                    የተጣራ ሽልማት (70%)፦ <strong>${data.win_amount} ETB</strong><br>
+                    <small style="font-size: 14px; opacity: 0.8;">(የሲስተም ኮሚሽን 30% = ${data.commission} ETB)</small>
+                `;
                 winnerBanner.style.display = 'block';
             }
 
             if (data.type === 'restart_selection') {
-                // ለአዲሱ ጨዋታ UIውን ማደስ
                 winnerBanner.style.display = 'none';
                 gamePlayArea.style.display = 'none';
                 myCartelaContainer.style.display = 'none';
@@ -173,13 +197,10 @@
                 cartelaBody.innerHTML = '';
                 drawnListDisplay.innerHTML = '';
                 currentNumberDisplay.innerText = '--';
+                updatePotUI(0, 0, 0);
                 buildSelectionGrid();
                 statusDisplay.innerText = "አዲስ ጨዋታ! ካርቴላ ይምረጡ።";
             }
-        };
-
-        socket.onclose = function() {
-            statusDisplay.innerText = "ግንኙነቱ ተቋርጧል። ገጹን Refresh ያድርጉ።";
         };
 
         function holdCartela(cartelaId) {
@@ -197,6 +218,12 @@
                 btn.className = playerName === currentUser ? 'cartela-btn my-cartela' : 'cartela-btn occupied';
                 btn.innerHTML = `<span>ካርቴላ #${cartelaId}</span><span class="player-badge">ተይዟል (${playerName})</span>`;
             }
+        }
+
+        function updatePotUI(total, winner, commission) {
+            totalPotDisplay.innerText = total || 0;
+            winnerPotDisplay.innerText = winner || 0;
+            commissionDisplay.innerText = commission || 0;
         }
 
         function renderMyCartela(cartelaId, matrix) {

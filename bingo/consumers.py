@@ -25,25 +25,20 @@ def generate_cartela_matrix():
     return matrix
 
 def check_bingo_win(matrix, drawn_numbers):
-    """ማንኛውም 1 መስመር (አግድም፣ ቁመት፣ ዲያጎናል) መሞላቱን ያረጋግጣል"""
     drawn_set = set(drawn_numbers)
-    drawn_set.add("FREE") # FREE ሁልጊዜ እንደወጣ ይቆጠራል
+    drawn_set.add("FREE")
 
-    # 1. አግድም መስመሮችን መፈተሽ (Rows)
     for row in matrix:
         if all(cell in drawn_set for cell in row):
             return True
 
-    # 2. የቁመት መስመሮችን መፈተሽ (Columns)
     for col in range(5):
         if all(matrix[row][col] in drawn_set for row in range(5)):
             return True
 
-    # 3. ዲያጎናል 1 (\)
     if all(matrix[i][i] in drawn_set for i in range(5)):
         return True
 
-    # 4. ዲያጎናል 2 (/)
     if all(matrix[i][4 - i] in drawn_set for i in range(5)):
         return True
 
@@ -56,11 +51,21 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'bingo_{self.room_name}'
 
+        try:
+            self.stake = int(self.room_name.split('_')[-1])
+        except (ValueError, IndexError):
+            self.stake = 10
+
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
         if self.room_name not in ROOMS:
             self.reset_room_state()
+
+        players_count = len(ROOMS[self.room_name]['players'])
+        total_pot = players_count * self.stake
+        commission = total_pot * 0.30  # 30% ኮሚሽን
+        winner_pot = total_pot - commission  # ቀሪው 70% ለአሸናፊው
 
         players_data = {p_name: p_info['cartela_id'] for p_name, p_info in ROOMS[self.room_name]['players'].items()}
 
@@ -68,6 +73,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             'type': 'room_state',
             'status': ROOMS[self.room_name]['status'],
             'timer': ROOMS[self.room_name]['timer'],
+            'stake': self.stake,
+            'total_pot': total_pot,
+            'winner_pot': winner_pot,
+            'commission': commission,
             'players': players_data,
             'drawn_numbers': ROOMS[self.room_name]['drawn_numbers']
         }))
@@ -108,6 +117,11 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     'matrix': matrix
                 }
 
+                # የብር ሂሳብ ስሌት (30% Commission)
+                total_pot = len(ROOMS[self.room_name]['players']) * self.stake
+                commission = total_pot * 0.30
+                winner_pot = total_pot - commission
+
                 await self.send(text_data=json.dumps({
                     'type': 'my_cartela_data',
                     'cartela_id': cartela_id,
@@ -119,7 +133,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     {
                         'type': 'cartela_update',
                         'cartela_id': cartela_id,
-                        'player_name': username
+                        'player_name': username,
+                        'total_pot': total_pot,
+                        'winner_pot': winner_pot,
+                        'commission': commission
                     }
                 )
 
@@ -157,36 +174,38 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-            # አሸናፊ ማረጋገጥ
             winner_found = False
             for player_name, player_info in ROOMS[self.room_name]['players'].items():
                 if check_bingo_win(player_info['matrix'], ROOMS[self.room_name]['drawn_numbers']):
                     ROOMS[self.room_name]['status'] = 'FINISHED'
                     winner_found = True
                     
-                    # ለአሸናፊው ማሳወቅ
+                    # አሸናፊው የሚወስደው (70%) እና የቤት/ሲስተም ኮሚሽን (30%)
+                    total_pot = len(ROOMS[self.room_name]['players']) * self.stake
+                    commission = total_pot * 0.30
+                    win_amount = total_pot - commission
+                    
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
                             'type': 'bingo_winner',
                             'winner_name': player_name,
-                            'cartela_id': player_info['cartela_id']
+                            'cartela_id': player_info['cartela_id'],
+                            'win_amount': win_amount,
+                            'commission': commission,
+                            'total_pot': total_pot
                         }
                     )
                     break
 
             if winner_found:
-                # ከ 6 ሰከንድ በኋላ ክፍሉን ለቀጣዩ ጨዋታ ማዘጋጀት
                 await asyncio.sleep(6)
                 self.reset_room_state()
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'reset_game'}
-                )
+                await self.channel_layer.group_send(self.room_group_name, {'type': 'reset_game'})
                 ROOMS[self.room_name]['timer_task'] = asyncio.create_task(self.start_room_timer())
                 break
 
-    # Broadcast Handlers
+    # Broadcast Event Handlers
     async def timer_tick(self, event):
         await self.send(text_data=json.dumps({'type': 'timer', 'time_left': event['time_left']}))
 
@@ -194,7 +213,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'cartela_selected',
             'cartela_id': event['cartela_id'],
-            'player_name': event['player_name']
+            'player_name': event['player_name'],
+            'total_pot': event['total_pot'],
+            'winner_pot': event['winner_pot'],
+            'commission': event['commission']
         }))
 
     async def game_start(self, event):
@@ -211,7 +233,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'game_over',
             'winner_name': event['winner_name'],
-            'cartela_id': event['cartela_id']
+            'cartela_id': event['cartela_id'],
+            'win_amount': event['win_amount'],
+            'commission': event['commission'],
+            'total_pot': event['total_pot']
         }))
 
     async def reset_game(self, event):
