@@ -38,8 +38,8 @@
 
     <h3>ካርቴላ ይምረጡ፡</h3>
     <div class="cartela-grid" id="cartela-container">
-        <!-- ለምሳሌ 20 ካርቴላዎች -->
-        {% for i in "x"|rjust:"20" %}
+        <!-- ለምሳሌ 400 ካርቴላዎች -->
+        {% for i in "x"|rjust:"400" %}
             <button class="cartela-btn" id="cartela-{{ forloop.counter }}" onclick="selectCartela({{ forloop.counter }})">
                 ካርቴላ #{{ forloop.counter }}
             </button>
