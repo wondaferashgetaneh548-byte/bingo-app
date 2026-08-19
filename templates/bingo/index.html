@@ -144,17 +144,25 @@
 
     <div class="cartela-section">
         <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
-        <div class="cartela-grid" id="cartela-container">
-            <!-- 400 ካርቴላዎች በDjango Loop ይፈጠራሉ -->
-            {% for i in "x"|rjust:"400" %}
-                <button class="cartela-btn" id="cartela-{{ forloop.counter }}" onclick="holdCartela({{ forloop.counter }})">
-                    <span>ካርቴላ #{{ forloop.counter }}</span>
-                </button>
-            {% endfor %}
-        </div>
+        <!-- የDjango loop አስወግደን በባዶ ሳጥን ተክተነዋል -->
+        <div class="cartela-grid" id="cartela-container"></div>
     </div>
 
     <script>
+        // 1. ገጹ ሲከፈት 400 ካርቴላዎችን በJS በራሱ ያፈልቃል
+        const container = document.getElementById('cartela-container');
+        container.innerHTML = ''; 
+
+        for (let i = 1; i <= 400; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'cartela-btn';
+            btn.id = `cartela-${i}`;
+            btn.onclick = () => holdCartela(i);
+            btn.innerHTML = `<span>ካርቴላ #${i}</span>`;
+            container.appendChild(btn);
+        }
+
+        // 2. WebSocket ማዋቀሪያ
         const roomName = "room1"; 
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/${roomName}/`);
