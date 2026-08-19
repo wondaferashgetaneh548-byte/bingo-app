@@ -61,7 +61,6 @@
             text-align: center;
         }
 
-        /* 400 ካርቴላዎች በስክሪኑ ላይ እንዳይረዝሙ Scrollable የተደረገ Box */
         .cartela-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
@@ -75,7 +74,6 @@
             border: 1px solid #0f3460;
         }
 
-        /* Scrollbar Styling */
         .cartela-grid::-webkit-scrollbar {
             width: 8px;
         }
@@ -120,6 +118,12 @@
             color: #ffffff;
         }
 
+        .cartela-btn.my-cartela {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #ffffff;
+        }
+
         .player-badge {
             font-size: 10px;
             background: rgba(0,0,0,0.5);
@@ -135,7 +139,7 @@
 <body>
 
     <div class="header">
-        <div class="user-info">ተጫዋች፦ <strong>{{ request.user.username }}</strong></div>
+        <div class="user-info">ተጫዋች፦ <strong id="current-user">{{ request.user.username }}</strong></div>
         <div class="timer-card">
             <div id="timer-display" class="timer-text">--</div>
             <div id="status-display" class="status-msg">ከክፍሉ ጋር በመገናኘት ላይ...</div>
@@ -144,15 +148,15 @@
 
     <div class="cartela-section">
         <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
-        <!-- የDjango loop አስወግደን በባዶ ሳጥን ተክተነዋል -->
         <div class="cartela-grid" id="cartela-container"></div>
     </div>
 
     <script>
-        // 1. ገጹ ሲከፈት 400 ካርቴላዎችን በJS በራሱ ያፈልቃል
+        const currentUser = document.getElementById('current-user').innerText.trim();
         const container = document.getElementById('cartela-container');
         container.innerHTML = ''; 
 
+        // 1. 400 ካርቴላዎችን ማፍለቅ
         for (let i = 1; i <= 400; i++) {
             const btn = document.createElement('button');
             btn.className = 'cartela-btn';
@@ -192,7 +196,7 @@
             }
 
             if (data.type === 'cartela_selected') {
-                updateCartelaUI(data.cartela_id, data.player_name);
+                updateCartelaUI(parseInt(data.cartela_id), data.player_name);
             }
 
             if (data.type === 'game_started') {
@@ -206,6 +210,10 @@
         };
 
         function holdCartela(cartelaId) {
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert("ከሰርቨሩ ጋር አልተገናኘህም። እባክህ ገጹን Refresh አድርግ!");
+                return;
+            }
             socket.send(JSON.stringify({
                 'action': 'select_cartela',
                 'cartela_id': cartelaId
@@ -213,10 +221,27 @@
         }
 
         function updateCartelaUI(cartelaId, playerName) {
+            // ተጫዋቹ ቀደም ብሎ የያዘው ካርቴላ ካለ መጀመሪያ ነፃ ማድረግ
+            const existingBadges = document.querySelectorAll('.player-badge');
+            existingBadges.forEach(badge => {
+                if (badge.innerText.includes(`(${playerName})`)) {
+                    const oldBtn = badge.parentElement;
+                    const oldId = oldBtn.id.replace('cartela-', '');
+                    oldBtn.disabled = false;
+                    oldBtn.className = 'cartela-btn';
+                    oldBtn.innerHTML = `<span>ካርቴላ #${oldId}</span>`;
+                }
+            });
+
+            // አዲሱን ካርቴላ መያዝ
             const btn = document.getElementById(`cartela-${cartelaId}`);
             if (btn) {
                 btn.disabled = true;
-                btn.classList.add('occupied');
+                if (playerName === currentUser) {
+                    btn.className = 'cartela-btn my-cartela';
+                } else {
+                    btn.className = 'cartela-btn occupied';
+                }
                 btn.innerHTML = `
                     <span>ካርቴላ #${cartelaId}</span>
                     <span class="player-badge">ተይዟል (${playerName})</span>
