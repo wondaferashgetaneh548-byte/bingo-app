@@ -5,6 +5,26 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 ROOMS = {}
 
+def generate_cartela_matrix():
+    """የ 5x5 የቢንጎ ካርቴላ ማፍለቂያ (B:1-15, I:16-30, N:31-45, G:46-60, O:61-75)"""
+    b = random.sample(range(1, 16), 5)
+    i = random.sample(range(16, 31), 5)
+    n = random.sample(range(31, 46), 4) # መካከለኛው FREE ነው
+    g = random.sample(range(46, 61), 5)
+    o = random.sample(range(61, 76), 5)
+
+    matrix = []
+    for r in range(5):
+        row = [
+            b[r],
+            i[r],
+            "FREE" if r == 2 else n[r if r < 2 else r - 1],
+            g[r],
+            o[r]
+        ]
+        matrix.append(row)
+    return matrix
+
 class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
@@ -24,17 +44,22 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             ROOMS[self.room_name] = {
                 'status': 'WAITING',
                 'timer': 45,
-                'players': {},
+                'players': {},  # {username: {'cartela_id': id, 'matrix': [[...]]}}
                 'timer_task': None,
-                'drawn_numbers': [],  # የወጡ ቁጥሮች መያዣ
-                'available_numbers': list(range(1, 76))  # 1-75 ቁጥሮች
+                'drawn_numbers': [],
+                'available_numbers': list(range(1, 76))
             }
+
+        # የነበሩ ተጫዋቾችን ካርቴላ መረጃ ማዘጋጀት
+        players_data = {}
+        for p_name, p_info in ROOMS[self.room_name]['players'].items():
+            players_data[p_name] = p_info['cartela_id']
 
         await self.send(text_data=json.dumps({
             'type': 'room_state',
             'status': ROOMS[self.room_name]['status'],
             'timer': ROOMS[self.room_name]['timer'],
-            'players': ROOMS[self.room_name]['players'],
+            'players': players_data,
             'drawn_numbers': ROOMS[self.room_name]['drawn_numbers']
         }))
 
@@ -56,10 +81,24 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     return
 
                 username = self.username
+                taken_ids = [p['cartela_id'] for p in ROOMS[self.room_name]['players'].values()]
 
-                if cartela_id not in ROOMS[self.room_name]['players'].values():
-                    ROOMS[self.room_name]['players'][username] = cartela_id
+                if cartela_id not in taken_ids:
+                    # አዲስ 5x5 ካርቴላ ማፍለቅ
+                    matrix = generate_cartela_matrix()
+                    ROOMS[self.room_name]['players'][username] = {
+                        'cartela_id': cartela_id,
+                        'matrix': matrix
+                    }
 
+                    # ለአስመራጩ ተጫዋች የካርቴላውን Matrix መላክ
+                    await self.send(text_data=json.dumps({
+                        'type': 'my_cartela_data',
+                        'cartela_id': cartela_id,
+                        'matrix': matrix
+                    }))
+
+                    # ለሌሎች ተጫዋቾች ካርቴላው መያዙን ማሳወቅ
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
@@ -70,7 +109,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     )
 
     async def start_room_timer(self):
-        """የ45 ሰከንድ ቆጠራ"""
         while ROOMS[self.room_name]['timer'] > 0:
             await asyncio.sleep(1)
             ROOMS[self.room_name]['timer'] -= 1
@@ -83,18 +121,15 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-        # 45 ሰከንዱ ሲያልቅ ጨዋታውን ማስመር እና ቁጥር ማውጣት መጀመር
         ROOMS[self.room_name]['status'] = 'PLAYING'
         await self.channel_layer.group_send(
             self.room_group_name,
             {'type': 'game_start'}
         )
         
-        # ቁጥሮችን በየ 3 ሰከንዱ በራሱ ማውጣት ይጀምራል
         asyncio.create_task(self.start_drawing_numbers())
 
     async def start_drawing_numbers(self):
-        """በየ 3 ሰከንዱ ቁጥር የሚያወጣ Loop"""
         numbers = ROOMS[self.room_name]['available_numbers']
         random.shuffle(numbers)
 
@@ -102,7 +137,7 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             if ROOMS[self.room_name]['status'] != 'PLAYING':
                 break
                 
-            await asyncio.sleep(3)  # በየ 3 ሰከንዱ
+            await asyncio.sleep(3)
             ROOMS[self.room_name]['drawn_numbers'].append(num)
 
             await self.channel_layer.group_send(
@@ -114,7 +149,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-    # Broadcast Event Handlers
     async def timer_tick(self, event):
         await self.send(text_data=json.dumps({'type': 'timer', 'time_left': event['time_left']}))
 

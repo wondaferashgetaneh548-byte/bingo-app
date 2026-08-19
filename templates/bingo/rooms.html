@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ (400 ካርቴላ)</title>
+    <title>የቢንጎ ጨዋታ ክፍለ-ጊዜ</title>
     <style>
         * {
             box-sizing: border-box;
@@ -48,7 +48,6 @@
             color: #e94560;
         }
 
-        /* አዲስ የተጨመረ የወጡ ቁጥሮች ማሳያ Box */
         .game-play-area {
             display: none;
             flex-direction: column;
@@ -97,6 +96,52 @@
             font-weight: bold;
         }
 
+        /* 5x5 የካርቴላ ሰንጠረዥ Style */
+        .my-cartela-container {
+            display: none;
+            margin-top: 20px;
+            flex-direction: column;
+            align-items: center;
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #28a745;
+        }
+
+        .bingo-table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .bingo-table th {
+            background-color: #e94560;
+            color: white;
+            padding: 10px;
+            font-size: 20px;
+            width: 55px;
+            border: 1px solid #0f3460;
+        }
+
+        .bingo-table td {
+            background-color: #0f3460;
+            color: white;
+            width: 55px;
+            height: 55px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            border: 1px solid #1a1a2e;
+            transition: all 0.3s ease;
+        }
+
+        /* የወጣ ቁጥር ሲሆን የሚበራ ቀለም */
+        .bingo-table td.matched {
+            background-color: #28a745 !important;
+            color: white !important;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px #28a745;
+        }
+
         .cartela-section {
             margin-top: 20px;
             width: 100%;
@@ -110,7 +155,7 @@
             gap: 8px;
             margin-top: 15px;
             padding: 15px;
-            max-height: 400px;
+            max-height: 350px;
             overflow-y: auto;
             background: #16213e;
             border-radius: 10px;
@@ -170,7 +215,7 @@
         </div>
     </div>
 
-    <!-- ጨዋታው ሲጀምር የሚወጡ ቁጥሮች ማሳያ -->
+    <!-- 1. የወጡ ቁጥሮች ማሳያ -->
     <div id="game-play-area" class="game-play-area">
         <h3>የወጣ ቁጥር</h3>
         <div id="current-number" class="current-number">--</div>
@@ -178,8 +223,22 @@
         <div id="drawn-list" class="drawn-list"></div>
     </div>
 
-    <div class="cartela-section">
-        <h3 id="cartela-title">ካርቴላ ይምረጡ (ከ1 - 400)</h3>
+    <!-- 2. የተመረጠው የኔ 5x5 ካርቴላ -->
+    <div id="my-cartela-container" class="my-cartela-container">
+        <h3 id="my-cartela-title" style="color: #4ecca3;">የእርስዎ ካርቴላ</h3>
+        <table class="bingo-table">
+            <thead>
+                <tr>
+                    <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
+                </tr>
+            </thead>
+            <tbody id="cartela-body"></tbody>
+        </table>
+    </div>
+
+    <!-- 3. የካርቴላ መምረጫ Grid -->
+    <div class="cartela-section" id="selection-section">
+        <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
         <div class="cartela-grid" id="cartela-container"></div>
     </div>
 
@@ -206,6 +265,11 @@
         const gamePlayArea = document.getElementById('game-play-area');
         const currentNumberDisplay = document.getElementById('current-number');
         const drawnListDisplay = document.getElementById('drawn-list');
+        const myCartelaContainer = document.getElementById('my-cartela-container');
+        const cartelaBody = document.getElementById('cartela-body');
+        const myCartelaTitle = document.getElementById('my-cartela-title');
+
+        let drawnNumbersSet = new Set();
 
         socket.onopen = function() {
             statusDisplay.innerText = "ካርቴላ ይምረጡ!";
@@ -223,6 +287,10 @@
                 }
             }
 
+            if (data.type === 'my_cartela_data') {
+                renderMyCartela(data.cartela_id, data.matrix);
+            }
+
             if (data.type === 'timer') {
                 timerDisplay.innerText = `${data.time_left} ሰከንድ`;
                 statusDisplay.innerText = "ካርቴላ መያዣ ጊዜው ሳያልቅ ይምረጡ";
@@ -238,7 +306,9 @@
 
             if (data.type === 'new_number') {
                 currentNumberDisplay.innerText = data.number;
+                drawnNumbersSet.add(data.number);
                 renderDrawnNumbers(data.all_drawn);
+                highlightMatchedNumbers(data.number);
             }
         };
 
@@ -285,10 +355,40 @@
             }
         }
 
+        function renderMyCartela(cartelaId, matrix) {
+            myCartelaTitle.innerText = `የእርስዎ ካርቴላ #${cartelaId}`;
+            cartelaBody.innerHTML = '';
+
+            matrix.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(val => {
+                    const td = document.createElement('td');
+                    td.innerText = val;
+                    if (val === 'FREE') {
+                        td.classList.add('matched');
+                    } else {
+                        td.setAttribute('data-num', val);
+                    }
+                    tr.appendChild(td);
+                });
+                cartelaBody.appendChild(tr);
+            });
+
+            myCartelaContainer.style.display = 'flex';
+        }
+
+        function highlightMatchedNumbers(newNum) {
+            const cells = document.querySelectorAll(`td[data-num="${newNum}"]`);
+            cells.forEach(cell => {
+                cell.classList.add('matched');
+            });
+        }
+
         function lockGame(message) {
             timerDisplay.innerText = "0 ሰከንድ";
             statusDisplay.innerText = message;
-            gamePlayArea.style.display = 'flex'; // የቁጥር ማሳያ ሳጥኑን ማሳየት
+            gamePlayArea.style.display = 'flex';
+            document.getElementById('selection-section').style.display = 'none'; // መምረጫውን ደብቆ ካርቴላውን ብቻ ማሳየት
             disableAllCartelas();
         }
 
