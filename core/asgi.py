@@ -2,15 +2,15 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import myapp.routing  # የፕሮጀክትህን አፕ ስም ተጠቀም
+import bingo.routing  # 'bingo' የሚለውን በእውነተኛው የApp ስምህ ተካው
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')  # 'core' የሚለውን በፕሮጀክትህ ስም ተካው
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            myapp.routing.websocket_urlpatterns
+            bingo.routing.websocket_urlpatterns  # የApp ስምህ .routing
         )
     ),
 })
