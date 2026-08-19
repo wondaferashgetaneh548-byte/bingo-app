@@ -1,29 +1,45 @@
 import json
 import asyncio
-import random
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-class BingoConsumer(AsyncWebsocketConsumer):
-    room_group_name = 'bingo_room'
-    is_timer_running = False
-    is_game_active = False
-    countdown_seconds = 45
-    taken_cards = {}  # {'card_no': 'username'}
+# በሜሞሪ ውስጥ የRoom ሁኔታዎችን መያዣ
+ROOMS = {}
 
+class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        self.user = self.scope["user"]
+
+        # 1. ተጫዋቹ Login ካላደረገ Connection ውድቅ ይደረጋል
+        if not self.user.is_authenticated:
+            await self.close()
+            return
+
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_group_name = f'bingo_{self.room_name}'
+
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # አዲስ ተጫዋች ሲገባ የተያዙ ካርቴላዎችን መረጃ ይላክለታል
+        # Room ከሌለ አዲስ መፍጠር
+        if self.room_name not in ROOMS:
+            ROOMS[self.room_name] = {
+                'status': 'WAITING',
+                'timer': 45,
+                'players': {},  # {username: cartela_id}
+                'timer_task': None
+            }
+
+        # የነበረውን ስቴት ለአዲሱ ተጫዋች መላክ
         await self.send(text_data=json.dumps({
-            'action': 'room_state',
-            'taken_cards': BingoConsumer.taken_cards
+            'type': 'room_state',
+            'status': ROOMS[self.room_name]['status'],
+            'timer': ROOMS[self.room_name]['timer'],
+                'players': ROOMS[self.room_name]['players']
         }))
 
-        # የመጀመሪያው ተጫዋች ሲገባ የ 45 ሰከንድ ቆጠራው ይጀምራል
-        if not BingoConsumer.is_timer_running and not BingoConsumer.is_game_active:
-            BingoConsumer.is_timer_running = True
-            asyncio.create_task(self.start_room_timer())
+        # ቆጠራው ካልጀመረ መጀመር
+        if ROOMS[self.room_name]['status'] == 'WAITING' and ROOMS[self.room_name]['timer_task'] is None:
+            ROOMS[self.room_name]['timer_task'] = asyncio.create_task(self.start_room_timer())
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
@@ -32,106 +48,62 @@ class BingoConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         action = data.get('action')
 
-        # 1. ተጫዋች ካርቴላ ሲመርጥ
-        if action == 'select_card':
-            card_no = str(data.get('card_no'))
-            username = data.get('username')
+        if action == 'select_cartela':
+            # 45 ሰከንዱ ካላለቀና ክፍሉ በ WAITING ላይ ከሆነ ብቻ
+            if ROOMS[self.room_name]['status'] == 'WAITING':
+                try:
+                    cartela_id = int(data.get('cartela_id')) # int መሆኑን ማረጋገጥ
+                except (ValueError, TypeError):
+                    return
 
-            BingoConsumer.taken_cards[card_no] = username
-            
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'card_selected_broadcast',
-                    'card_no': card_no,
-                    'username': username
-                }
-            )
+                username = self.user.username
 
-        # 2. ተጫዋች ቢንጎ ሲል
-        elif action == 'claim_bingo':
-            BingoConsumer.is_game_active = False
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'game_over_broadcast',
-                    'winner_id': data.get('winner_id'),
-                    'winner_name': data.get('winner_name'),
-                    'winning_card_no': data.get('winning_card_no'),
-                    'prize_pool': data.get('prize_pool')
-                }
-            )
+                # ካርቴላው በሌላ ሰው አለመያዙን ማረጋገጥ
+                if cartela_id not in ROOMS[self.room_name]['players'].values():
+                    # ተጫዋቹ ቀደም ብሎ የያዘው ካርቴላ ካለ ማፅዳት
+                    ROOMS[self.room_name]['players'][username] = cartela_id
+
+                    # ለሁሉም ተጫዋቾች ማሳወቅ
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'cartela_update',
+                            'cartela_id': cartela_id,
+                            'player_name': username
+                        }
+                    )
 
     async def start_room_timer(self):
-        current = self.countdown_seconds
-        while current >= 0:
+        """የ45 ሰከንድ ቆጠራ"""
+        while ROOMS[self.room_name]['timer'] > 0:
+            await asyncio.sleep(1)
+            ROOMS[self.room_name]['timer'] -= 1
+
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
-                    'type': 'timer_update',
-                    'time_left': current
+                    'type': 'timer_tick',
+                    'time_left': ROOMS[self.room_name]['timer']
                 }
             )
-            await asyncio.sleep(1)
-            current -= 1
 
-        # 45 ሰከንዱ ሲያልቅ ጨዋታው ይጀምራል
-        BingoConsumer.is_timer_running = False
-        BingoConsumer.is_game_active = True
-        
+        # 45 ሰከንዱ ሲያልቅ ጨዋታውን ማስመር
+        ROOMS[self.room_name]['status'] = 'PLAYING'
         await self.channel_layer.group_send(
             self.room_group_name,
-            {'type': 'start_game_all'}
+            {'type': 'game_start'}
         )
 
-        # ጨዋታው ሲጀምር ቁጥሮችን መጥራት ይጀምራል
-        asyncio.create_task(self.call_bingo_numbers())
+    # Broadcast Event Handlers
+    async def timer_tick(self, event):
+        await self.send(text_data=json.dumps({'type': 'timer', 'time_left': event['time_left']}))
 
-    async def call_bingo_numbers(self):
-        numbers = list(range(1, 76))
-        random.shuffle(numbers)
-
-        for num in numbers:
-            if not BingoConsumer.is_game_active:
-                break
-
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'broadcast_number',
-                    'number': num
-                }
-            )
-            await asyncio.sleep(3)
-
-    async def timer_update(self, event):
+    async def cartela_update(self, event):
         await self.send(text_data=json.dumps({
-            'action': 'timer_tick',
-            'time_left': event['time_left']
+            'type': 'cartela_selected',
+            'cartela_id': event['cartela_id'],
+            'player_name': event['player_name']
         }))
 
-    async def start_game_all(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'game_started'
-        }))
-
-    async def card_selected_broadcast(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'card_selected_broadcast',
-            'card_no': event['card_no'],
-            'username': event['username']
-        }))
-
-    async def broadcast_number(self, event):
-        await self.send(text_data=json.dumps({
-            'number': event['number']
-        }))
-
-    async def game_over_broadcast(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'game_over',
-            'winner_id': event['winner_id'],
-            'winner_name': event['winner_name'],
-            'winning_card_no': event['winning_card_no'],
-            'prize_pool': event['prize_pool']
-        }))
+    async def game_start(self, event):
+        await self.send(text_data=json.dumps({'type': 'game_started'}))
