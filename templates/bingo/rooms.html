@@ -24,7 +24,7 @@
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .user-info {
@@ -48,10 +48,53 @@
             color: #e94560;
         }
 
-        .status-msg {
-            font-size: 16px;
-            color: #bbbbbb;
-            margin-top: 5px;
+        /* አዲስ የተጨመረ የወጡ ቁጥሮች ማሳያ Box */
+        .game-play-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e94560;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .current-number {
+            font-size: 60px;
+            font-weight: bold;
+            color: #4ecca3;
+            background: #0f3460;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid #4ecca3;
+            margin: 10px 0;
+        }
+
+        .drawn-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            max-height: 80px;
+            overflow-y: auto;
+            justify-content: center;
+        }
+
+        .drawn-ball {
+            background: #e94560;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
         }
 
         .cartela-section {
@@ -67,19 +110,11 @@
             gap: 8px;
             margin-top: 15px;
             padding: 15px;
-            max-height: 520px;
+            max-height: 400px;
             overflow-y: auto;
             background: #16213e;
             border-radius: 10px;
             border: 1px solid #0f3460;
-        }
-
-        .cartela-grid::-webkit-scrollbar {
-            width: 8px;
-        }
-        .cartela-grid::-webkit-scrollbar-thumb {
-            background: #e94560;
-            border-radius: 4px;
         }
 
         .cartela-btn {
@@ -91,7 +126,6 @@
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -99,17 +133,11 @@
             gap: 3px;
         }
 
-        .cartela-btn:hover:not(:disabled) {
-            background-color: #e94560;
-            transform: translateY(-2px);
-        }
-
         .cartela-btn:disabled {
             background-color: #222233;
             border-color: #444455;
             color: #777788;
             cursor: not-allowed;
-            transform: none;
         }
 
         .cartela-btn.occupied {
@@ -129,10 +157,6 @@
             background: rgba(0,0,0,0.5);
             padding: 2px 4px;
             border-radius: 3px;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
     </style>
 </head>
@@ -146,8 +170,16 @@
         </div>
     </div>
 
+    <!-- ጨዋታው ሲጀምር የሚወጡ ቁጥሮች ማሳያ -->
+    <div id="game-play-area" class="game-play-area">
+        <h3>የወጣ ቁጥር</h3>
+        <div id="current-number" class="current-number">--</div>
+        <h4>የወጡ ቁጥሮች ዝርዝር፦</h4>
+        <div id="drawn-list" class="drawn-list"></div>
+    </div>
+
     <div class="cartela-section">
-        <h3>ካርቴላ ይምረጡ (ከ1 - 400)</h3>
+        <h3 id="cartela-title">ካርቴላ ይምረጡ (ከ1 - 400)</h3>
         <div class="cartela-grid" id="cartela-container"></div>
     </div>
 
@@ -156,7 +188,6 @@
         const container = document.getElementById('cartela-container');
         container.innerHTML = ''; 
 
-        // 1. 400 ካርቴላዎችን ማፍለቅ
         for (let i = 1; i <= 400; i++) {
             const btn = document.createElement('button');
             btn.className = 'cartela-btn';
@@ -166,13 +197,15 @@
             container.appendChild(btn);
         }
 
-        // 2. WebSocket ማዋቀሪያ
         const roomName = "room1"; 
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/${roomName}/`);
 
         const timerDisplay = document.getElementById('timer-display');
         const statusDisplay = document.getElementById('status-display');
+        const gamePlayArea = document.getElementById('game-play-area');
+        const currentNumberDisplay = document.getElementById('current-number');
+        const drawnListDisplay = document.getElementById('drawn-list');
 
         socket.onopen = function() {
             statusDisplay.innerText = "ካርቴላ ይምረጡ!";
@@ -183,7 +216,7 @@
 
             if (data.type === 'room_state') {
                 if (data.status === 'PLAYING') {
-                    lockGame("ጨዋታው ተጀምሯል! አዲስ ካርቴላ መያዝ አይቻልም።");
+                    lockGame("ጨዋታው ተጀምሯል!");
                 }
                 for (const [player, cartelaId] of Object.entries(data.players)) {
                     updateCartelaUI(cartelaId, player);
@@ -202,6 +235,11 @@
             if (data.type === 'game_started') {
                 lockGame("ጊዜው አልቋል! ጨዋታው ተጀምሯል።");
             }
+
+            if (data.type === 'new_number') {
+                currentNumberDisplay.innerText = data.number;
+                renderDrawnNumbers(data.all_drawn);
+            }
         };
 
         socket.onclose = function() {
@@ -211,7 +249,7 @@
 
         function holdCartela(cartelaId) {
             if (socket.readyState !== WebSocket.OPEN) {
-                alert("ከሰርቨሩ ጋር አልተገናኘህም። እባክህ ገጹን Refresh አድርግ!");
+                alert("ከሰርቨሩ ጋር አልተገናኘህም። ገጹን Refresh አድርግ!");
                 return;
             }
             socket.send(JSON.stringify({
@@ -221,7 +259,6 @@
         }
 
         function updateCartelaUI(cartelaId, playerName) {
-            // ተጫዋቹ ቀደም ብሎ የያዘው ካርቴላ ካለ ማፅዳት
             const existingBadges = document.querySelectorAll('.player-badge');
             existingBadges.forEach(badge => {
                 if (badge.innerText.includes(`(${playerName})`)) {
@@ -233,7 +270,6 @@
                 }
             });
 
-            // አዲሱን ካርቴላ መያዝ
             const btn = document.getElementById(`cartela-${cartelaId}`);
             if (btn) {
                 btn.disabled = true;
@@ -252,12 +288,23 @@
         function lockGame(message) {
             timerDisplay.innerText = "0 ሰከንድ";
             statusDisplay.innerText = message;
+            gamePlayArea.style.display = 'flex'; // የቁጥር ማሳያ ሳጥኑን ማሳየት
             disableAllCartelas();
         }
 
         function disableAllCartelas() {
             const buttons = document.querySelectorAll('.cartela-btn');
             buttons.forEach(btn => btn.disabled = true);
+        }
+
+        function renderDrawnNumbers(drawnArray) {
+            drawnListDisplay.innerHTML = '';
+            drawnArray.forEach(num => {
+                const ball = document.createElement('span');
+                ball.className = 'drawn-ball';
+                ball.innerText = num;
+                drawnListDisplay.appendChild(ball);
+            });
         }
     </script>
 </body>
