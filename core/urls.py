@@ -1,11 +1,8 @@
-from django.contrib import admin
-from django.urls import path, include
-from django.views.generic import RedirectView  # ይህን Import አድርግ
+from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('bingo/', include('bingo.urls')),
-    
-    # ባዶ ገፅ (/) ሲከፈት በቀጥታ ወደ /bingo/ እንዲሄድ ያደርጋል
-    path('', RedirectView.as_view(url='/bingo/', permanent=False)),
+    path('', views.rooms_list, name='rooms_list'),
+    path('room/<int:stake>/', views.room_detail, name='room_detail'),
+    path('room_<str:room_name>/', views.room_detail_by_name, name='room_detail_by_name'),
 ]
