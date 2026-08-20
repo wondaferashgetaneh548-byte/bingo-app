@@ -127,8 +127,15 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 if (BASE_DIR / 'static').exists():
     STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Render ላይ missing static files ስህተት እንዳይፈጥር የሚያደርግ አስተማማኝ WhiteNoise Storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# Django 4.2+ እና WhiteNoise Storage ማስተካከያ
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
