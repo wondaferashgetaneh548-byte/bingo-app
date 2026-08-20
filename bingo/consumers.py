@@ -31,7 +31,6 @@ def generate_cartela_matrix():
 
 class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # 1. KeyError እንዳይመጣ kwargs ን በደህንነት መፈተሽ
         url_kwargs = self.scope.get('url_route', {}).get('kwargs', {})
         self.room_name = url_kwargs.get('room_name', 'default_room')
         self.room_group_name = f'bingo_{self.room_name}'
@@ -52,7 +51,8 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 'status': 'WAITING',
                 'players': {},
                 'drawn_numbers': [],
-                'task': None
+                'task': None,
+                'draw_task': None
             }
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -133,6 +133,29 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 {'type': 'game_started'}
             )
+            # ቆጠራው ሲያልቅ ቁጥሮችን በራስ-ሰር ማውጣት ይጀምራል
+            if ROOMS[self.room_name]['draw_task'] is None:
+                ROOMS[self.room_name]['draw_task'] = asyncio.create_task(self.auto_draw_numbers())
+
+    async def auto_draw_numbers(self):
+        all_numbers = list(range(1, 76))
+        random.shuffle(all_numbers)
+
+        for number in all_numbers:
+            if self.room_name not in ROOMS or ROOMS[self.room_name]['status'] != 'PLAYING':
+                break
+            
+            ROOMS[self.room_name]['drawn_numbers'].append(number)
+            
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'number_drawn',
+                    'number': number,
+                    'all_drawn': ROOMS[self.room_name]['drawn_numbers']
+                }
+            )
+            await asyncio.sleep(3)  # በየ 3 ሰከንዱ አዲስ ቁጥር ይወጣል
 
     # Event Handlers
     async def cartela_update(self, event):
@@ -154,4 +177,11 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def game_started(self, event):
         await self.send(text_data=json.dumps({
             'type': 'game_started'
+        }))
+
+    async def number_drawn(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'number_drawn',
+            'number': event['number'],
+            'drawn_numbers': event['all_drawn']
         }))
