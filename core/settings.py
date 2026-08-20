@@ -9,10 +9,10 @@ SECURE_SETTINGS = {
 }
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-change-this-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
@@ -39,12 +39,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Render ላይ Static files (CSS/JS) ለማስተናገድ WhiteNoise Middleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    # 'django.middleware.clickjacking.XFrameOptionsMiddleware', # Telegram Mini App በ Iframe እንዲከፈት ተዘግቷል
 ]
 
 # Telegram Mini App በ Iframe ውስጥ ያለምንም ችግር እንዲከፈት መፍቀድ
@@ -126,9 +127,15 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# የ static ፎልደር በፕሮጀክቱ ስር መኖሩን ብቻ አረጋግጦ መውሰጃ (WARNING ይከላከላል)
+if (BASE_DIR / 'static').exists():
+    STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Render ላይ static files ለማቅረብ WhiteNoise Storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
