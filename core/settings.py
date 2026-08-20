@@ -12,13 +12,11 @@ SECURE_SETTINGS = {
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
-
 # Application definition
-
 INSTALLED_APPS = [
     # 1. Daphne ከstaticfiles በላይ መሆን አለበት (ለ WebSocket/ASGI)
     'daphne',
@@ -54,6 +52,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 # HTTPS & Telegram Request ማስተናገጃ
 CSRF_TRUSTED_ORIGINS = [
     'https://bingo-app-1-91no.onrender.com',
+    'https://*.onrender.com',
     'https://web.telegram.org',
 ]
 
@@ -81,7 +80,6 @@ ASGI_APPLICATION = 'core.asgi.application'
 # WSGI Application
 WSGI_APPLICATION = 'core.wsgi.application'
 
-
 # Database Configuration
 DATABASES = {
     'default': {
@@ -90,14 +88,12 @@ DATABASES = {
     }
 }
 
-
 # 5. Channel Layer Configuration
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
-
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -115,7 +111,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 
@@ -125,17 +120,15 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# የ static ፎልደር በፕሮጀክቱ ስር መኖሩን ብቻ አረጋግጦ መውሰጃ (WARNING ይከላከላል)
 if (BASE_DIR / 'static').exists():
     STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Render ላይ static files ለማቅረብ WhiteNoise Storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Render ላይ missing static files ስህተት እንዳይፈጥር የሚያደርግ አስተማማኝ WhiteNoise Storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
