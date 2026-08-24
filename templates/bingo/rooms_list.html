@@ -152,48 +152,78 @@
             }
         }
 
-        // 4. ቁጥር ሲነካ የ B-I-N-G-O Pop-up መክፈት
+        // 4. B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75 በየአምዱ የሚመድብ ማፍሪያ
+        function generateBingoNumbers(cardId) {
+            let seed = cardId * 997;
+            function randomRange(min, max) {
+                seed = (seed * 9301 + 49297) % 233280;
+                return Math.floor(min + (seed / 233280) * (max - min + 1));
+            }
+
+            let cols = { B: [], I: [], N: [], G: [], O: [] };
+            let ranges = [
+                { key: 'B', min: 1, max: 15, count: 5 },
+                { key: 'I', min: 16, max: 30, count: 5 },
+                { key: 'N', min: 31, max: 45, count: 4 }, // N መሃል F ስላለው 4 ብቻ
+                { key: 'G', min: 46, max: 60, count: 5 },
+                { key: 'O', min: 61, max: 75, count: 5 }
+            ];
+
+            ranges.forEach(r => {
+                while (cols[r.key].length < r.count) {
+                    let num = randomRange(r.min, r.max);
+                    if (!cols[r.key].includes(num)) {
+                        cols[r.key].push(num);
+                    }
+                }
+            });
+
+            // Grid ላይ በ Row መልክ ተደርድረው ሲታዩ Column አቀማመጡ ትክክል እንዲሆን ማድረግ
+            let flatArray = [];
+            for (let row = 0; row < 5; row++) {
+                flatArray.push(cols.B[row]);
+                flatArray.push(cols.I[row]);
+                
+                if (row === 2) {
+                    flatArray.push('F');
+                } else {
+                    let nIdx = row > 2 ? row - 1 : row;
+                    flatArray.push(cols.N[nIdx]);
+                }
+
+                flatArray.push(cols.G[row]);
+                flatArray.push(cols.O[row]);
+            }
+            return flatArray;
+        }
+
+        // 5. ቁጥር ሲነካ የ B-I-N-G-O Pop-up መክፈት
         function openCardPreviewModal(id) {
             selectedCartelaId = id;
             document.getElementById('preview-card-num').innerText = id;
 
-            // የ 5x5 የቢንጎ ቁጥሮች መፍጠር (መሃል 'F')
             let grid = document.getElementById('modal-bingo-grid');
             grid.innerHTML = '';
 
             let numbers = generateBingoNumbers(id);
-            let numIdx = 0;
 
-            for (let i = 0; i < 25; i++) {
+            numbers.forEach(val => {
                 let cell = document.createElement('div');
                 cell.className = 'bingo-box';
 
-                if (i === 12) { // 13ኛው ቦታ (መሃል) 'F' ይሆናል
+                if (val === 'F') {
                     cell.innerText = 'F';
                     cell.classList.add('free-space');
                 } else {
-                    cell.innerText = numbers[numIdx];
-                    numIdx++;
+                    cell.innerText = val;
                 }
                 grid.appendChild(cell);
-            }
+            });
 
             document.getElementById('cardPreviewModal').style.display = 'flex';
         }
 
-        // ለየካርቴላው ቁጥር የተለያየ አጋጣሚ ቁጥሮች መፍጠሪያ
-        function generateBingoNumbers(cardId) {
-            let nums = [];
-            let seed = cardId * 997;
-            while(nums.length < 24) {
-                seed = (seed * 9301 + 49297) % 233280;
-                let rnd = Math.floor((seed / 233280) * 75) + 1;
-                if(nums.indexOf(rnd) === -1) nums.push(rnd);
-            }
-            return nums;
-        }
-
-        // 5. CONFIRM CARDS ሲጫን
+        // 6. CONFIRM CARDS ሲጫን
         function confirmCartela() {
             if (!selectedCartelaId) return;
 
@@ -212,7 +242,7 @@
             document.getElementById(`cartela-${selectedCartelaId}`).classList.add('selected');
         }
 
-        // 6. BACK ቁልፍ
+        // 7. BACK ቁልፍ
         function goBackToStakes() {
             if (socket) socket.close();
             selectedCartelaId = null;
