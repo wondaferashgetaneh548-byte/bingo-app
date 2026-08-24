@@ -12,21 +12,45 @@
         .stake-btn { padding: 15px; background: #28a745; color: white; font-weight: bold; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; }
         
         /* 2. Join Pop-up Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999; }
         .modal-content { background: #1e1e1e; padding: 25px; border-radius: 12px; width: 80%; max-width: 320px; border: 1px solid #333; }
         .btn-join { width: 100%; padding: 12px; background: #007bff; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px; }
 
         /* 3. የ 400 ካርቴላዎች Grid */
         #cartela-room-section { display: none; }
-        .cartela-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 6px; max-height: 350px; overflow-y: auto; padding: 10px; background: #1e1e1e; border-radius: 8px; }
+        .cartela-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 6px; max-height: 380px; overflow-y: auto; padding: 10px; background: #1e1e1e; border-radius: 8px; }
         .cartela-btn { padding: 10px 0; background: #2a2a2a; color: #fff; font-weight: bold; border: 1px solid #444; border-radius: 5px; cursor: pointer; }
         .cartela-btn.selected { background: #ffc107; color: #000; border-color: #ffc107; }
         .cartela-btn.taken { background: #dc3545; color: #fff; cursor: not-allowed; }
 
-        /* 4. Action Buttons (Back & Confirm) */
-        .action-bar { display: none; justify-content: space-between; margin-top: 15px; gap: 10px; }
-        .btn-back { flex: 1; padding: 12px; background: #6c757d; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
-        .btn-confirm { flex: 1; padding: 12px; background: #28a745; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
+        /* 4. የካርቴላ ማሳያ Pop-up Modal (B-I-N-G-O) */
+        .card-preview-modal {
+            background: rgba(45, 20, 70, 0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            padding: 20px;
+            width: 320px;
+            text-align: center;
+            color: white;
+            border: 2px solid #f1c40f;
+            box-shadow: 0px 0px 20px rgba(241, 196, 15, 0.4);
+        }
+        .card-title { font-size: 22px; font-weight: bold; margin-bottom: 12px; }
+        .bingo-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .b-circle { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; }
+        .b-purple { background: #4a2574; }
+        .b-yellow { background: #d4ac0d; }
+        .b-red { background: #e74c3c; }
+        .b-green { background: #2ecc71; }
+        .b-red2 { background: #ff0000; }
+
+        .bingo-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 20px; }
+        .bingo-box { background: #ffffff; color: #000000; font-weight: bold; font-size: 18px; border-radius: 6px; height: 42px; display: flex; align-items: center; justify-content: center; }
+        .bingo-box.free-space { background: #007bff; color: #ffffff; font-size: 20px; font-weight: 900; }
+
+        .modal-buttons { display: flex; justify-content: space-between; gap: 10px; }
+        .btn-modal-back { background: #f1c40f; color: #4a2574; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; flex: 1; }
+        .btn-modal-confirm { background: #f1c40f; color: #4a2574; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; flex: 1; }
     </style>
 </head>
 <body>
@@ -51,19 +75,39 @@
             <h3 id="modal-title">የ 10 ETB ክፍል</h3>
             <p>ወደ ጨዋታው መግባት ይፈልጋሉ?</p>
             <button class="btn-join" onclick="joinRoom()">JOIN</button>
-            <button style="margin-top:10px; background:none; border:none; color:#aaa; cursor:pointer;" onclick="closeModal()">ሰርዝ</button>
+            <button style="margin-top:10px; background:none; border:none; color:#aaa; cursor:pointer;" onclick="closeModal('joinModal')">ሰርዝ</button>
         </div>
     </div>
 
     <!-- ደረጃ 3፦ የ 400 ካርቴላዎች ክፍል -->
     <div id="cartela-room-section">
         <h3 id="room-title">ካርቴላ ይምረጡ</h3>
+        <button onclick="goBackToStakes()" style="margin-bottom: 10px; padding: 6px 15px; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">← ክፍሎችን ቀይር</button>
         <div id="cartela-grid" class="cartela-grid"></div>
+    </div>
 
-        <!-- ደረጃ 4፦ Back እና Confirm ቁልፎች -->
-        <div id="action-bar" class="action-bar">
-            <button class="btn-back" onclick="goBackToStakes()">BACK</button>
-            <button class="btn-confirm" onclick="confirmCartela()">CONFIRM</button>
+    <!-- ደረጃ 4፦ የካርቴላ ማሳያ (Pop-up Modal) -->
+    <div id="cardPreviewModal" class="modal">
+        <div class="card-preview-modal">
+            <h2 class="card-title">Card No. <span id="preview-card-num">10</span></h2>
+            
+            <!-- B I N G O Header -->
+            <div class="bingo-header">
+                <span class="b-circle b-purple">B</span>
+                <span class="b-circle b-yellow">I</span>
+                <span class="b-circle b-red">N</span>
+                <span class="b-circle b-green">G</span>
+                <span class="b-circle b-red2">O</span>
+            </div>
+
+            <!-- 5x5 Grid -->
+            <div id="modal-bingo-grid" class="bingo-grid"></div>
+
+            <!-- Buttons -->
+            <div class="modal-buttons">
+                <button type="button" class="btn-modal-back" onclick="closeModal('cardPreviewModal')">Go Back</button>
+                <button type="button" class="btn-modal-confirm" onclick="confirmCartela()">Confirm Cards</button>
+            </div>
         </div>
     </div>
 
@@ -79,25 +123,22 @@
             document.getElementById('joinModal').style.display = 'flex';
         }
 
-        function closeModal() {
-            document.getElementById('joinModal').style.display = 'none';
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
         // 2. JOIN ሲነካ ወደ ካርቴላ ክፍል መግባት
         function joinRoom() {
-            closeModal();
+            closeModal('joinModal');
             document.getElementById('stake-section').style.display = 'none';
             document.getElementById('cartela-room-section').style.display = 'block';
             document.getElementById('room-title').innerText = `የ ${selectedStake} ETB ክፍል - ካርቴላ ይምረጡ`;
 
-            // 400 ካርቴላዎችን ማሳየት
             render400Cartelas();
-
-            // WebSocket ማገናኘት
             connectWebSocket(selectedStake);
         }
 
-        // 3. 400 ካርቴላዎችን መፍጠር (1 - 400)
+        // 3. 400 ካርቴላዎችን መፍጠር
         function render400Cartelas() {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
@@ -106,43 +147,77 @@
                 btn.className = 'cartela-btn';
                 btn.id = `cartela-${i}`;
                 btn.innerText = i;
-                btn.onclick = () => selectCartelaTemp(i);
+                btn.onclick = () => openCardPreviewModal(i);
                 grid.appendChild(btn);
             }
         }
 
-        // 4. ካርቴላ በጊዜያዊነት ሲመረጥ Back & Confirm ማሳየት
-        function selectCartelaTemp(id) {
-            // ቀድመው የተመረጡትን ቢጫነት ማንሳት
-            document.querySelectorAll('.cartela-btn.selected').forEach(el => el.classList.remove('selected'));
-
+        // 4. ቁጥር ሲነካ የ B-I-N-G-O Pop-up መክፈት
+        function openCardPreviewModal(id) {
             selectedCartelaId = id;
-            document.getElementById(`cartela-${id}`).classList.add('selected');
+            document.getElementById('preview-card-num').innerText = id;
 
-            // Back እና Confirm ቁልፎችን ማሳየት
-            document.getElementById('action-bar').style.display = 'flex';
+            // የ 5x5 የቢንጎ ቁጥሮች መፍጠር (መሃል 'F')
+            let grid = document.getElementById('modal-bingo-grid');
+            grid.innerHTML = '';
+
+            let numbers = generateBingoNumbers(id);
+            let numIdx = 0;
+
+            for (let i = 0; i < 25; i++) {
+                let cell = document.createElement('div');
+                cell.className = 'bingo-box';
+
+                if (i === 12) { // 13ኛው ቦታ (መሃል) 'F' ይሆናል
+                    cell.innerText = 'F';
+                    cell.classList.add('free-space');
+                } else {
+                    cell.innerText = numbers[numIdx];
+                    numIdx++;
+                }
+                grid.appendChild(cell);
+            }
+
+            document.getElementById('cardPreviewModal').style.display = 'flex';
         }
 
-        // 5. BACK ቁልፍ፦ ምርጫውን ሰርዞ ወደ ብር መምረጫ መመለስ
-        function goBackToStakes() {
-            if (socket) socket.close();
-            selectedCartelaId = null;
-            document.getElementById('action-bar').style.display = 'none';
-            document.getElementById('cartela-room-section').style.display = 'none';
-            document.getElementById('stake-section').style.display = 'block';
+        // ለየካርቴላው ቁጥር የተለያየ አጋጣሚ ቁጥሮች መፍጠሪያ
+        function generateBingoNumbers(cardId) {
+            let nums = [];
+            let seed = cardId * 997;
+            while(nums.length < 24) {
+                seed = (seed * 9301 + 49297) % 233280;
+                let rnd = Math.floor((seed / 233280) * 75) + 1;
+                if(nums.indexOf(rnd) === -1) nums.push(rnd);
+            }
+            return nums;
         }
 
-        // 6. CONFIRM ቁልፍ፦ ምርጫውን አፅድቆ ወደ Server መላክ
+        // 5. CONFIRM CARDS ሲጫን
         function confirmCartela() {
             if (!selectedCartelaId) return;
 
-            socket.send(JSON.stringify({
-                'action': 'select_cartela',
-                'cartela_id': selectedCartelaId
-            }));
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    'action': 'select_cartela',
+                    'cartela_id': selectedCartelaId
+                }));
+            }
 
             alert(`ካርቴላ ቁጥር ${selectedCartelaId} በትክክል ተረጋግጧል!`);
-            document.getElementById('action-bar').style.display = 'none';
+            closeModal('cardPreviewModal');
+            
+            // የተመረጠውን ቁጥር በብርሃን ማሳየት
+            document.querySelectorAll('.cartela-btn.selected').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`cartela-${selectedCartelaId}`).classList.add('selected');
+        }
+
+        // 6. BACK ቁልፍ
+        function goBackToStakes() {
+            if (socket) socket.close();
+            selectedCartelaId = null;
+            document.getElementById('cartela-room-section').style.display = 'none';
+            document.getElementById('stake-section').style.display = 'block';
         }
 
         // WebSocket ማገናኛ
@@ -152,8 +227,6 @@
 
             socket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
-                
-                // ሌሎች ተጫዋቾች የያዟቸውን ካርቴላዎች ቀይ ማድረግ
                 if (data.type === 'cartela_selected') {
                     const btn = document.getElementById(`cartela-${data.cartela_id}`);
                     if (btn) {
