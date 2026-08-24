@@ -1,8 +1,7 @@
-from django.urls import path
-from . import views
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    path('', views.rooms_list, name='rooms_list'),
-    path('room/<int:stake>/', views.room_detail, name='room_detail'),
-    path('room_<str:room_name>/', views.room_detail_by_name, name='room_detail_by_name'),
+    path('admin/', admin.site.urls),
+    path('', include('bingo.urls')),  # bingo/urls.py ን ይጨምራል
 ]
