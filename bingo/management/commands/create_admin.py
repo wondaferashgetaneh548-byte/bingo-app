@@ -4,8 +4,10 @@ from django.contrib.auth import get_user_model
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@example.com', 'Admin12345!')
-            self.stdout.write(self.style.SUCCESS('Superuser admin created successfully!'))
-        else:
-            self.stdout.write('Superuser admin already exists.')
+        user, created = User.objects.get_or_create(username='admin')
+        user.email = 'admin@example.com'
+        user.set_password('Admin12345!')
+        user.is_superuser = True
+        user.is_staff = True
+        user.save()
+        self.stdout.write(self.style.SUCCESS('Superuser updated successfully!'))
