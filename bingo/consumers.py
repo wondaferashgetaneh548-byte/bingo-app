@@ -6,9 +6,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 ROOMS = {}
 
 def generate_cartela_matrix(cartela_id):
-    # ለእያንዳንዱ ካርቴላ ቁጥር ሁልጊዜ ቋሚ ቁጥር እንዲወጣ Seed ማድረግ
+    # ለእያንዳንዱ ካርቴላ ቁጥር ሁልጊዜ ቋሚ ቁጥሮች በየ B-I-N-G-O አምዱ እንዲወጡ ማድረግ
     rng = random.Random(int(cartela_id) * 997)
-    
     ranges = {
         'B': range(1, 16),
         'I': range(16, 31),
@@ -16,12 +15,10 @@ def generate_cartela_matrix(cartela_id):
         'G': range(46, 61),
         'O': range(61, 76)
     }
-    
-    # N አምድ መሃል 'FREE' ስላለው 4 ቁጥር ብቻ፣ ሌሎቹ 5 ቁጥር ይወስዳሉ
     columns = {
         'B': rng.sample(ranges['B'], 5),
         'I': rng.sample(ranges['I'], 5),
-        'N': rng.sample(ranges['N'], 4),
+        'N': rng.sample(ranges['N'], 4),  # N አምድ መሃል 'FREE' ስላለው 4 ቁጥር ብቻ
         'G': rng.sample(ranges['G'], 5),
         'O': rng.sample(ranges['O'], 5)
     }
@@ -37,6 +34,32 @@ def generate_cartela_matrix(cartela_id):
         ]
         matrix.append(row)
     return matrix
+
+
+def check_bingo_win(matrix, drawn_numbers):
+    # 1 መስመር (አግድም፣ ဒေါንግ ወይም ዲያጎናል) መዘጋቱን ማረጋገጫ
+    drawn_set = set(drawn_numbers)
+    drawn_set.add('FREE')
+    drawn_set.add('F')
+
+    # Rows (አግድም) ማረጋገጥ
+    for row in matrix:
+        if all(cell in drawn_set for cell in row):
+            return True
+
+    # Columns (ደቡብ) ማረጋገጥ
+    for col_idx in range(5):
+        if all(matrix[row_idx][col_idx] in drawn_set for row_idx in range(5)):
+            return True
+
+    # Diagonals (ዲያጎናል) ማረጋገጥ
+    if all(matrix[i][i] in drawn_set for i in range(5)):
+        return True
+    if all(matrix[i][4 - i] in drawn_set for i in range(5)):
+        return True
+
+    return False
+
 
 class BingoRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -70,7 +93,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         total_pot = len(ROOMS[self.room_name]['players']) * self.stake
         commission = total_pot * 0.30
         winner_pot = total_pot - commission
-
         players_summary = {p: info['cartela_id'] for p, info in ROOMS[self.room_name]['players'].items()}
 
         await self.send(text_data=json.dumps({
@@ -90,12 +112,12 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         action = data.get('action')
 
+        # 1. ተጫዋች ካርቴላ ሲመርጥ
         if action == 'select_cartela' and ROOMS[self.room_name]['status'] == 'WAITING':
             cartela_id = int(data.get('cartela_id'))
             taken_ids = [p['cartela_id'] for p in ROOMS[self.room_name]['players'].values()]
 
             if cartela_id not in taken_ids:
-                # ካርቴላ አይዲውን አስተላላፊ በማድረግ ትክክለኛውን ማትሪክስ ማፍራት
                 matrix = generate_cartela_matrix(cartela_id)
                 ROOMS[self.room_name]['players'][self.username] = {
                     'cartela_id': cartela_id,
@@ -124,11 +146,34 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
-                if len(ROOMS[self.room_name]['players']) >= 2 and ROOMS[self.room_name]['task'] is None:
+                # የመጀመሪያው ተጫዋች ሲገባ የ 45 ሰከንድ ቆጠራ ይጀምራል
+                if ROOMS[self.room_name]['task'] is None:
                     ROOMS[self.room_name]['task'] = asyncio.create_task(self.start_countdown())
 
+        # 2. ተጫዋች BINGO ሲል
+        elif action == 'claim_bingo' and ROOMS[self.room_name]['status'] == 'PLAYING':
+            player_info = ROOMS[self.room_name]['players'].get(self.username)
+            if player_info:
+                is_win = check_bingo_win(player_info['matrix'], ROOMS[self.room_name]['drawn_numbers'])
+                if is_win:
+                    ROOMS[self.room_name]['status'] = 'FINISHED'
+                    
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            'type': 'game_over',
+                            'winner': self.username,
+                            'cartela_id': player_info['cartela_id']
+                        }
+                    )
+                    
+                    # ከ 5 ሰከንድ በኋላ ክፍሉን ለቀጣይ ጨዋታ ማጽዳት
+                    await asyncio.sleep(5)
+                    self.reset_room()
+
+    # የ 45 ሰከንድ ቆጠራ ማስሄጃ
     async def start_countdown(self):
-        for i in range(10, -1, -1):
+        for i in range(45, -1, -1):
             if self.room_name not in ROOMS:
                 return
             await self.channel_layer.group_send(
@@ -143,10 +188,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 {'type': 'game_started'}
             )
-            # ቆጠራው ሲያልቅ ቁጥሮችን በራስ-ሰር ማውጣት ይጀምራል
             if ROOMS[self.room_name]['draw_task'] is None:
                 ROOMS[self.room_name]['draw_task'] = asyncio.create_task(self.auto_draw_numbers())
 
+    # ቁጥሮች በየ 3 ሰከንዱ በራስ-ሰር እንዲወጡ ማድረግ
     async def auto_draw_numbers(self):
         all_numbers = list(range(1, 76))
         random.shuffle(all_numbers)
@@ -165,7 +210,18 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                     'all_drawn': ROOMS[self.room_name]['drawn_numbers']
                 }
             )
-            await asyncio.sleep(3)  # በየ 3 ሰከንዱ አዲስ ቁጥር ይወጣል
+            await asyncio.sleep(3)
+
+    # ክፍሉን ለአዲስ ጨዋታ ማስተካከል
+    def reset_room(self):
+        if self.room_name in ROOMS:
+            ROOMS[self.room_name] = {
+                'status': 'WAITING',
+                'players': {},
+                'drawn_numbers': [],
+                'task': None,
+                'draw_task': None
+            }
 
     # Event Handlers
     async def cartela_update(self, event):
@@ -185,13 +241,18 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         }))
 
     async def game_started(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'game_started'
-        }))
+        await self.send(text_data=json.dumps({'type': 'game_started'}))
 
     async def number_drawn(self, event):
         await self.send(text_data=json.dumps({
             'type': 'number_drawn',
             'number': event['number'],
             'drawn_numbers': event['all_drawn']
+        }))
+
+    async def game_over(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'game_over',
+            'winner': event['winner'],
+            'cartela_id': event['cartela_id']
         }))
