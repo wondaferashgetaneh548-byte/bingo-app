@@ -5,7 +5,10 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 ROOMS = {}
 
-def generate_cartela_matrix():
+def generate_cartela_matrix(cartela_id):
+    # ለእያንዳንዱ ካርቴላ ቁጥር ሁልጊዜ ቋሚ ቁጥር እንዲወጣ Seed ማድረግ
+    rng = random.Random(int(cartela_id) * 997)
+    
     ranges = {
         'B': range(1, 16),
         'I': range(16, 31),
@@ -13,16 +16,22 @@ def generate_cartela_matrix():
         'G': range(46, 61),
         'O': range(61, 76)
     }
-    columns = {}
-    for letter, r in ranges.items():
-        columns[letter] = random.sample(r, 5)
+    
+    # N አምድ መሃል 'FREE' ስላለው 4 ቁጥር ብቻ፣ ሌሎቹ 5 ቁጥር ይወስዳሉ
+    columns = {
+        'B': rng.sample(ranges['B'], 5),
+        'I': rng.sample(ranges['I'], 5),
+        'N': rng.sample(ranges['N'], 4),
+        'G': rng.sample(ranges['G'], 5),
+        'O': rng.sample(ranges['O'], 5)
+    }
     
     matrix = []
     for i in range(5):
         row = [
             columns['B'][i],
             columns['I'][i],
-            columns['N'][i] if i != 2 else 'FREE',
+            columns['N'][i] if i < 2 else ('FREE' if i == 2 else columns['N'][i - 1]),
             columns['G'][i],
             columns['O'][i]
         ]
@@ -86,7 +95,8 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             taken_ids = [p['cartela_id'] for p in ROOMS[self.room_name]['players'].values()]
 
             if cartela_id not in taken_ids:
-                matrix = generate_cartela_matrix()
+                # ካርቴላ አይዲውን አስተላላፊ በማድረግ ትክክለኛውን ማትሪክስ ማፍራት
+                matrix = generate_cartela_matrix(cartela_id)
                 ROOMS[self.room_name]['players'][self.username] = {
                     'cartela_id': cartela_id,
                     'matrix': matrix
