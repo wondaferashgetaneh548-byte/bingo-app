@@ -3,5 +3,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('bingo.urls')),  # የ bingo/urls.py ን ያካታል
+    path('', include('bingo.urls')),
 ]
