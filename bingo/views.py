@@ -7,7 +7,7 @@ def index(request):
     """1. መጀመሪያ የሚከፈተው - Login Page"""
     if request.user.is_authenticated:
         return redirect('home')
-    return render(request, 'bingo/login.html')
+    return render(request, 'bingo/index.html')
 
 @login_required
 def home(request):
