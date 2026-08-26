@@ -1,15 +1,15 @@
-from django.shortcuts import render, redirect
+ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 import json
 
 def index(request):
     """የመግቢያ Home Page View"""
-    return render(request, 'room.html')
+    return render(request, 'bingo/room.html')
 
 def rooms_list(request):
-    """የክፍሎች ዝርዝር View (ወደ room.html ይመራል)"""
-    return render(request, 'room.html')
+    """የክፍሎች ዝርዝር View"""
+    return render(request, 'bingo/room.html')
 
 def room_detail(request, stake):
     """በውርርድ መጠን (Stake) ወደ room.html መግቢያ View"""
@@ -17,17 +17,17 @@ def room_detail(request, stake):
         'stake': stake,
         'room_name': f"room_{stake}"
     }
-    return render(request, 'room.html', context)
+    return render(request, 'bingo/room.html', context)
 
 def room_detail_by_name(request, room_name):
     """በክፍል ስም (Room Name) ወደ room.html መግቢያ View"""
     context = {
         'room_name': room_name
     }
-    return render(request, 'room.html', context)
+    return render(request, 'bingo/room.html', context)
 
 def select_card(request):
-    """ተጫዋች ካርቴላ ሲመርጥ በ HTTP API የሚስተናገድበት (ከፈለጉ)"""
+    """ተጫዋች ካርቴላ ሲመርጥ በ HTTP API የሚስተናገድበት"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
