@@ -37,7 +37,7 @@ def generate_cartela_matrix(cartela_id):
 
 
 def check_bingo_win(matrix, drawn_numbers):
-    # 1 መስመር (አግድም፣ ဒေါንግ ወይም ዲያጎናል) መዘጋቱን ማረጋገጫ
+    # 1 መስመር (አግድም፣ ቀጥታ ወይም ዲያጎናል) መዘጋቱን ማረጋገጫ
     drawn_set = set(drawn_numbers)
     drawn_set.add('FREE')
     drawn_set.add('F')
@@ -47,7 +47,7 @@ def check_bingo_win(matrix, drawn_numbers):
         if all(cell in drawn_set for cell in row):
             return True
 
-    # Columns (ደቡብ) ማረጋገጥ
+    # Columns (ቀጥታ) ማረጋገጥ
     for col_idx in range(5):
         if all(matrix[row_idx][col_idx] in drawn_set for row_idx in range(5)):
             return True
@@ -158,6 +158,10 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 if is_win:
                     ROOMS[self.room_name]['status'] = 'FINISHED'
                     
+                    # አውቶማቲክ ቁጥር መሳብ እንዲቆም ማድረግ
+                    if ROOMS[self.room_name]['draw_task']:
+                        ROOMS[self.room_name]['draw_task'].cancel()
+
                     await self.channel_layer.group_send(
                         self.room_group_name,
                         {
@@ -167,54 +171,66 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                         }
                     )
                     
-                    # ከ 5 ሰከንድ በኋላ ክፍሉን ለቀጣይ ጨዋታ ማጽዳት
+                    # ከ 5 ሰከንድ በኋላ ክፍሉን ለአዲስ ጨዋታ ማጽዳት
                     await asyncio.sleep(5)
-                    self.reset_room()
+                    await self.reset_room_async()
 
     # የ 45 ሰከንድ ቆጠራ ማስሄጃ
     async def start_countdown(self):
-        for i in range(45, -1, -1):
-            if self.room_name not in ROOMS:
-                return
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'timer_update', 'seconds': i}
-            )
-            await asyncio.sleep(1)
+        try:
+            for i in range(45, -1, -1):
+                if self.room_name not in ROOMS or ROOMS[self.room_name]['status'] != 'WAITING':
+                    return
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'timer_update', 'seconds': i}
+                )
+                await asyncio.sleep(1)
 
-        if self.room_name in ROOMS:
-            ROOMS[self.room_name]['status'] = 'PLAYING'
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'game_started'}
-            )
-            if ROOMS[self.room_name]['draw_task'] is None:
-                ROOMS[self.room_name]['draw_task'] = asyncio.create_task(self.auto_draw_numbers())
+            if self.room_name in ROOMS:
+                ROOMS[self.room_name]['status'] = 'PLAYING'
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'game_started'}
+                )
+                if ROOMS[self.room_name]['draw_task'] is None:
+                    ROOMS[self.room_name]['draw_task'] = asyncio.create_task(self.auto_draw_numbers())
+        except asyncio.CancelledError:
+            pass
 
     # ቁጥሮች በየ 3 ሰከንዱ በራስ-ሰር እንዲወጡ ማድረግ
     async def auto_draw_numbers(self):
-        all_numbers = list(range(1, 76))
-        random.shuffle(all_numbers)
+        try:
+            all_numbers = list(range(1, 76))
+            random.shuffle(all_numbers)
 
-        for number in all_numbers:
-            if self.room_name not in ROOMS or ROOMS[self.room_name]['status'] != 'PLAYING':
-                break
-            
-            ROOMS[self.room_name]['drawn_numbers'].append(number)
-            
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'number_drawn',
-                    'number': number,
-                    'all_drawn': ROOMS[self.room_name]['drawn_numbers']
-                }
-            )
-            await asyncio.sleep(3)
+            for number in all_numbers:
+                if self.room_name not in ROOMS or ROOMS[self.room_name]['status'] != 'PLAYING':
+                    break
+                
+                ROOMS[self.room_name]['drawn_numbers'].append(number)
+                
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'number_drawn',
+                        'number': number,
+                        'all_drawn': ROOMS[self.room_name]['drawn_numbers']
+                    }
+                )
+                await asyncio.sleep(3)
+        except asyncio.CancelledError:
+            pass
 
-    # ክፍሉን ለአዲስ ጨዋታ ማስተካከል
-    def reset_room(self):
+    # ክፍሉን ለአዲስ ጨዋታ ማስተካከል እና ለተጫዋቾች ማሳወቅ
+    async def reset_room_async(self):
         if self.room_name in ROOMS:
+            # የቀሩ ታስኮችን Cancel ማድረግ
+            if ROOMS[self.room_name]['task']:
+                ROOMS[self.room_name]['task'].cancel()
+            if ROOMS[self.room_name]['draw_task']:
+                ROOMS[self.room_name]['draw_task'].cancel()
+
             ROOMS[self.room_name] = {
                 'status': 'WAITING',
                 'players': {},
@@ -222,6 +238,12 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 'task': None,
                 'draw_task': None
             }
+
+            # ለሁሉም ተጫዋቾች ገጻቸው እንዲጸዳ ማሳወቅ
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'room_reset'}
+            )
 
     # Event Handlers
     async def cartela_update(self, event):
@@ -256,3 +278,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             'winner': event['winner'],
             'cartela_id': event['cartela_id']
         }))
+
+    async def room_reset(self, event):
+        await self.send(text_data=json.dumps({'type': 'room_reset'}))
