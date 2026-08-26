@@ -280,4 +280,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         }))
 
     async def room_reset(self, event):
-        await self.send(text_data=json.dumps({'type': 'room_reset'}))
+        await self.send(text_data=json.dumps({
+            'type': 'room_reset'
+        }))
