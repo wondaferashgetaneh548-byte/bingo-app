@@ -4,17 +4,24 @@ from django.contrib.auth.decorators import login_required
 import json
 
 def index(request):
-    """መጀመሪያ የሚከፈተው መግቢያ (Login) View"""
+    """1. መጀመሪያ የሚከፈተው - Login Page"""
     if request.user.is_authenticated:
-        return redirect('rooms_list')
-    return render(request, 'bingo/index.html')  # ወይም 'bingo/login.html'
+        return redirect('home')
+    return render(request, 'bingo/login.html')
 
+@login_required
+def home(request):
+    """2. ከ Login በኋላ የሚመጣው Landing Page (ቢንጎ ጌም + Play Button)"""
+    return render(request, 'bingo/home.html')
+
+@login_required
 def rooms_list(request):
-    """የብር መጠን/Stake መምረጫ View"""
+    """3. Play ሲነካ የሚመጣው የ Stake ዝርዝር (10birr, 20birr, Join buttons...)"""
     return render(request, 'bingo/rooms_list.html')
 
+@login_required
 def room_detail(request, stake):
-    """በውርርድ መጠን (Stake) ወደ ጨዋታ ክፍል መግቢያ View"""
+    """4. Join ሲነካ የሚመጣው የጨዋታ ክፍል (1-400 Cartela Grid)"""
     context = {
         'stake': stake,
         'room_name': f"room_{stake}"

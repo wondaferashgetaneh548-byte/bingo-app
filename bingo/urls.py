@@ -2,19 +2,24 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # 1. መጀመሪያ የሚከፈተው (Login Page / index.html)
+    # 1. Root - መጀመሪያ Login ገጽ (login.html)
     path('', views.index, name='index'),
     
-    # 2. የ Stake/ብር መጠን መምረጫ (rooms_list.html)
+    # 2. Home Page (ቢንጎ ጌም - Play button ያለው ገጽ)
+    path('home/', views.home, name='home'),
+    
+    # 3. Rooms List Page (10birr, 20birr... Join buttons)
     path('rooms/', views.rooms_list, name='rooms_list'),
     
-    # 3. በቁጥር የሚጠራ (ምሳሌ፦ /room/10/)
-    path('room/<int:stake>/', views.room_detail, name='room_detail'),
+    # 4. Game Room Page (የ 1-400 ካርቴላ መምረጫ Grid)
+    path('room/<str:stake>/', views.room_detail, name='room_detail'),
+    path('room/name/<str:room_name>/', views.room_detail_by_name, name='room_detail_by_name'),
     
-    # 4. በስም የሚጠራ (ምሳሌ፦ /room_10/)
-    path('room_<str:room_name>/', views.room_detail_by_name, name='room_detail_by_name'),
-    
+    # API Endpoints
     path('select-card/', views.select_card, name='select_card'),
+    path('api/auth-user/', views.auth_user, name='auth_user'),
+    
+    # Wallet & transactions
     path('wallet/', views.wallet, name='wallet'),
     path('deposit/', views.deposit, name='deposit'),
     path('withdraw/', views.withdraw, name='withdraw'),
