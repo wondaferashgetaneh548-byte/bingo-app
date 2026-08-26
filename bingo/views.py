@@ -1,123 +1,62 @@
-import json
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.contrib import messages
-from django.contrib.auth.models import User
-from django.views.decorators.csrf import csrf_exempt
+import json
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
-
-
-# 1. Telegram Web App አውቶማቲክ ምዝገባ እና መግቢያ (Auth API)
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def auth_user(request):
-    data = request.data
-    telegram_id = str(data.get('telegram_id'))
-    username = data.get('username', f"Player_{telegram_id}")
-
-    if not telegram_id or telegram_id == 'undefined':
-        return Response({'error': 'ትክክለኛ Telegram ID አልቀረበም'}, status=400)
-
-    # ተጠቃሚው ካለ ያመጣዋል፤ ከሌለ አዲስ አካውንት ይፈጥራል (Register/Login)
-    user, created = User.objects.get_or_create(
-        username=telegram_id,
-        defaults={'first_name': username}
-    )
-
-    token, _ = Token.objects.get_or_create(user=user)
-
-    return Response({
-        'status': 'success',
-        'is_new_user': created,
-        'token': token.key,
-        'username': user.first_name,
-        'user_id': user.id
-    })
-
-
-# 2. የክፍሎች ዝርዝር ማሳያ ገጽ
-@login_required
-def rooms_list(request):
-    stakes = [10, 20, 50, 100, 200, 500]
-    context = {
-        'stakes': stakes
-    }
-    return render(request, 'bingo/rooms_list.html', context)
-
-
-# 3. ዋናው መነሻ ገጽ (Index Page)
 def index(request):
-    return render(request, 'bingo/index.html')
+    """የመግቢያ ወይም የዋና ገፅ View"""
+    return render(request, 'index.html')
 
+def rooms_list(request):
+    """የተለያዩ የቋሚ ውርርድ ክፍሎችን (Rooms) የሚያሳይ View"""
+    # ናሙና የክፍል ደረጃዎች (Stakes)
+    stakes = [10, 20, 50, 100]
+    return render(request, 'rooms_list.html', {'stakes': stakes})
 
-# 4. በቁጥር ለሚመጡ ክፍሎች (ምሳሌ፦ /bingo/room/100/)
-@login_required
 def room_detail(request, stake):
+    """በውርርድ መጠን (Stake) ወደ ክፍል መግቢያ View"""
     context = {
         'stake': stake,
         'room_name': f"room_{stake}"
     }
-    return render(request, 'bingo/bingo_room.html', context)
+    return render(request, 'room_detail.html', context)
 
-
-# 5. በስም ለሚመጡ ክፍሎች (ምሳሌ፦ /bingo/room_100/)
-@login_required
 def room_detail_by_name(request, room_name):
-    stake_clean = str(room_name).replace('room_', '')
-    try:
-        stake = int(stake_clean)
-    except ValueError:
-        stake = 10
-        
+    """በክፍል ስም (Room Name) ወደ ክፍል መግቢያ View"""
     context = {
-        'stake': stake,
-        'room_name': f"room_{stake}"
+        'room_name': room_name
     }
-    return render(request, 'bingo/bingo_room.html', context)
+    return render(request, 'room_detail.html', context)
 
-
-# 6. ካርቴላ መምረጫ ገጽ / API
-@csrf_exempt
 def select_card(request):
+    """ተጫዋች ካርቴላ ሲመርጥ በ API ወይም AJAX የሚስተናገድበት View"""
     if request.method == 'POST':
-        card_id = request.POST.get('card_id')
-        # የካርቴላ መምረጥ Logic
-        return JsonResponse({'status': 'success', 'card_id': card_id})
-    return render(request, 'bingo/select_card.html')
+        data = json.loads(request.body)
+        cartela_id = data.get('cartela_id')
+        return JsonResponse({'status': 'success', 'cartela_id': cartela_id})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
-
-# 7. የኪስ ቦርሳ (Wallet) ገጽ
 @login_required
 def wallet(request):
-    context = {
-        'balance': getattr(request.user, 'balance', 0.0)
-    }
-    return render(request, 'bingo/wallet.html', context)
+    """የተጫዋች የገንዘብ ቦርሳ (Wallet) ሁኔታ የሚያይበት View"""
+    return render(request, 'wallet.html')
 
-
-# 8. ገንዘብ ገቢ ማድረጊያ (Deposit)
 @login_required
 def deposit(request):
+    """ገንዘብ ገቢ ማድረጊያ View"""
     if request.method == 'POST':
-        amount = request.POST.get('amount')
-        # የገንዘብ ገቢ ማድረጊያ Process logic
-        messages.success(request, f"{amount} ብር በስኬት ገቢ ሆኗል!")
+        # የገንዘብ ገቢ ማድረጊያ Process እዚህ ይሰራል
         return redirect('wallet')
-    return render(request, 'bingo/deposit.html')
+    return render(request, 'deposit.html')
 
-
-# 9. ገንዘብ ወጪ ማድረጊያ (Withdraw)
 @login_required
 def withdraw(request):
+    """ገንዘብ ወጪ ማድረጊያ View"""
     if request.method == 'POST':
-        amount = request.POST.get('amount')
-        # የገንዘብ ወጪ ማድረጊያ Process logic
-        messages.success(request, f"{amount} ብር ወጪ ለማድረግ ጥያቄ ቀርቧል!")
+        # የገንዘብ ወጪ ማድረጊያ Process እዚህ ይሰራል
         return redirect('wallet')
-    return render(request, 'bingo/withdraw.html')
+    return render(request, 'withdraw.html')
+
+def auth_user(request):
+    """የተጫዋች Auth/API View"""
+    return JsonResponse({'user': request.user.username if request.user.is_authenticated else 'Guest'})
