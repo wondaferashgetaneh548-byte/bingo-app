@@ -18,30 +18,30 @@
 
         /* 3. የ 400 ካርቴላዎች Grid */
         #cartela-room-section { display: none; }
-        .cartela-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 6px; max-height: 320px; overflow-y: auto; padding: 10px; background: #1e1e1e; border-radius: 8px; }
+        .cartela-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 6px; max-height: 250px; overflow-y: auto; padding: 10px; background: #1e1e1e; border-radius: 8px; margin-bottom: 15px; }
         .cartela-btn { padding: 10px 0; background: #2a2a2a; color: #fff; font-weight: bold; border: 1px solid #444; border-radius: 5px; cursor: pointer; }
         .cartela-btn.selected { background: #ffc107; color: #000; border-color: #ffc107; }
         .cartela-btn.taken { background: #dc3545; color: #fff; cursor: not-allowed; }
 
-        /* ጨዋታ ማካሄጃ UI (Timer, Numbers, Bingo Button) */
+        /* ጨዋታ ማካሄጃ UI */
         .game-status-card { background: #1e1e1e; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #333; }
         #timer-display { color: #ffc107; font-size: 20px; margin: 5px 0; }
-        #last-drawn-number { font-size: 22px; color: #2ecc71; font-weight: bold; margin: 5px 0; }
+        #last-drawn-number { font-size: 24px; color: #2ecc71; font-weight: bold; margin: 5px 0; }
         .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 22px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 15px; display: none; box-shadow: 0 0 12px rgba(220, 53, 69, 0.7); }
 
-        /* 4. የካርቴላ ማሳያ Pop-up Modal (B-I-N-G-O) */
-        .card-preview-modal {
+        /* 4. የካርቴላ ማሳያ (Modal እና Live Playing Board) */
+        .card-container {
             background: rgba(45, 20, 70, 0.95);
-            backdrop-filter: blur(8px);
             border-radius: 20px;
             padding: 20px;
             width: 320px;
+            margin: 0 auto;
             text-align: center;
             color: white;
             border: 2px solid #f1c40f;
             box-shadow: 0px 0px 20px rgba(241, 196, 15, 0.4);
         }
-        .card-title { font-size: 22px; font-weight: bold; margin-bottom: 12px; }
+        .card-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
         .bingo-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
         .b-circle { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; }
         .b-purple { background: #4a2574; }
@@ -50,13 +50,18 @@
         .b-green { background: #2ecc71; }
         .b-red2 { background: #ff0000; }
 
-        .bingo-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 20px; }
+        .bingo-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
         .bingo-box { background: #ffffff; color: #000000; font-weight: bold; font-size: 18px; border-radius: 6px; height: 42px; display: flex; align-items: center; justify-content: center; }
         .bingo-box.free-space { background: #007bff; color: #ffffff; font-size: 20px; font-weight: 900; }
+        
+        /* ቁጥር ሲወጣ በራስ-ሰር የሚበራበት (Matched Number) */
+        .bingo-box.matched { background: #ffc107 !important; color: #000 !important; font-weight: bold; box-shadow: 0 0 8px #ffc107; }
 
-        .modal-buttons { display: flex; justify-content: space-between; gap: 10px; }
-        .btn-modal-back { background: #f1c40f; color: #4a2574; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; flex: 1; }
-        .btn-modal-confirm { background: #f1c40f; color: #4a2574; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; flex: 1; }
+        .modal-buttons { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
+        .btn-modal-back { background: #6c757d; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
+        .btn-modal-confirm { background: #28a745; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
+        
+        #my-live-cartela-section { display: none; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -90,7 +95,6 @@
         <h3 id="room-title">ካርቴላ ይምረጡ</h3>
         <button onclick="goBackToStakes()" style="margin-bottom: 10px; padding: 6px 15px; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">← ክፍሎችን ቀይር</button>
         
-        <!-- የቆጠራ እና የወጣ ቁጥር ማሳያ -->
         <div class="game-status-card">
             <div id="timer-display">ካርቴላ ይምረጡ...</div>
             <div id="last-drawn-number"></div>
@@ -98,16 +102,27 @@
 
         <div id="cartela-grid" class="cartela-grid"></div>
 
-        <!-- BINGO የሚል ጥሪ ማድረጊያ Button -->
-        <button id="claim-bingo-btn" class="btn-bingo-claim" onclick="claimBingo()">BINGO!</button>
+        <!-- ተጫዋቹ የያዘው ካርቴላ ጨዋታው ሲጀምር በቋሚነት የሚታይበት -->
+        <div id="my-live-cartela-section">
+            <h3>የእርስዎ ካርቴላ (<span id="my-card-num-title">-</span>)</h3>
+            <div class="card-container">
+                <div class="bingo-header">
+                    <span class="b-circle b-purple">B</span>
+                    <span class="b-circle b-yellow">I</span>
+                    <span class="b-circle b-red">N</span>
+                    <span class="b-circle b-green">G</span>
+                    <span class="b-circle b-red2">O</span>
+                </div>
+                <div id="live-bingo-grid" class="bingo-grid"></div>
+            </div>
+            <button id="claim-bingo-btn" class="btn-bingo-claim" onclick="claimBingo()">BINGO!</button>
+        </div>
     </div>
 
-    <!-- ደረጃ 4፦ የካርቴላ ማሳያ (Pop-up Modal) -->
+    <!-- ደረጃ 4፦ የካርቴላ ማሳያ Modal (Preview) -->
     <div id="cardPreviewModal" class="modal">
-        <div class="card-preview-modal">
+        <div class="card-container">
             <h2 class="card-title">Card No. <span id="preview-card-num">10</span></h2>
-            
-            <!-- B I N G O Header -->
             <div class="bingo-header">
                 <span class="b-circle b-purple">B</span>
                 <span class="b-circle b-yellow">I</span>
@@ -115,14 +130,10 @@
                 <span class="b-circle b-green">G</span>
                 <span class="b-circle b-red2">O</span>
             </div>
-
-            <!-- 5x5 Grid -->
             <div id="modal-bingo-grid" class="bingo-grid"></div>
-
-            <!-- Buttons -->
             <div class="modal-buttons">
-                <button type="button" class="btn-modal-back" onclick="closeModal('cardPreviewModal')">Go Back</button>
-                <button type="button" class="btn-modal-confirm" onclick="confirmCartela()">Confirm Cards</button>
+                <button type="button" class="btn-modal-back" onclick="closeModal('cardPreviewModal')">ተመለስ</button>
+                <button type="button" class="btn-modal-confirm" onclick="confirmCartela()">ምረጥ (Confirm)</button>
             </div>
         </div>
     </div>
@@ -131,8 +142,8 @@
         let selectedStake = null;
         let selectedCartelaId = null;
         let socket = null;
+        let drawnNumbersSet = new Set();
 
-        // 1. የብር መጠን ሲነካ Modal መክፈት
         function openJoinModal(stake) {
             selectedStake = stake;
             document.getElementById('modal-title').innerText = `የ ${stake} ETB ክፍል`;
@@ -143,18 +154,16 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
-        // 2. JOIN ሲነካ ወደ ካርቴላ ክፍል መግባት
         function joinRoom() {
             closeModal('joinModal');
             document.getElementById('stake-section').style.display = 'none';
             document.getElementById('cartela-room-section').style.display = 'block';
-            document.getElementById('room-title').innerText = `የ ${selectedStake} ETB ክፍል - ካርቴላ ይምረጡ`;
+            document.getElementById('room-title').innerText = `የ ${selectedStake} ETB ክፍል`;
 
             render400Cartelas();
             connectWebSocket(selectedStake);
         }
 
-        // 3. 400 ካርቴላዎችን መፍጠር
         function render400Cartelas() {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
@@ -168,7 +177,6 @@
             }
         }
 
-        // 4. B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75 በየአምዱ የሚመድብ ማፍሪያ
         function generateBingoNumbers(cardId) {
             let seed = cardId * 997;
             function randomRange(min, max) {
@@ -180,7 +188,7 @@
             let ranges = [
                 { key: 'B', min: 1, max: 15, count: 5 },
                 { key: 'I', min: 16, max: 30, count: 5 },
-                { key: 'N', min: 31, max: 45, count: 4 }, // N መሃል F ስላለው 4 ብቻ
+                { key: 'N', min: 31, max: 45, count: 4 },
                 { key: 'G', min: 46, max: 60, count: 5 },
                 { key: 'O', min: 61, max: 75, count: 5 }
             ];
@@ -194,39 +202,33 @@
                 }
             });
 
-            // Grid ላይ በ Row መልክ ተደርድረው ሲታዩ Column አቀማመጡ ትክክል እንዲሆን ማድረግ
             let flatArray = [];
             for (let row = 0; row < 5; row++) {
                 flatArray.push(cols.B[row]);
                 flatArray.push(cols.I[row]);
-                
                 if (row === 2) {
                     flatArray.push('F');
                 } else {
                     let nIdx = row > 2 ? row - 1 : row;
                     flatArray.push(cols.N[nIdx]);
                 }
-
                 flatArray.push(cols.G[row]);
                 flatArray.push(cols.O[row]);
             }
             return flatArray;
         }
 
-        // 5. ቁጥር ሲነካ የ B-I-N-G-O Pop-up መክፈት
         function openCardPreviewModal(id) {
             selectedCartelaId = id;
             document.getElementById('preview-card-num').innerText = id;
 
             let grid = document.getElementById('modal-bingo-grid');
             grid.innerHTML = '';
-
             let numbers = generateBingoNumbers(id);
 
             numbers.forEach(val => {
                 let cell = document.createElement('div');
                 cell.className = 'bingo-box';
-
                 if (val === 'F') {
                     cell.innerText = 'F';
                     cell.classList.add('free-space');
@@ -239,7 +241,6 @@
             document.getElementById('cardPreviewModal').style.display = 'flex';
         }
 
-        // 6. CONFIRM CARDS ሲጫን
         function confirmCartela() {
             if (!selectedCartelaId) return;
 
@@ -250,23 +251,48 @@
                 }));
             }
 
-            alert(`ካርቴላ ቁጥር ${selectedCartelaId} በትክክል ተረጋግጧል!`);
             closeModal('cardPreviewModal');
             
-            // የተመረጠውን ቁጥር በብርሃን ማሳየት
+            // የያዙትን ካርቴላ በቋሚነት ከስር ማሳየት
+            renderLiveCartela(selectedCartelaId);
             document.querySelectorAll('.cartela-btn.selected').forEach(el => el.classList.remove('selected'));
             document.getElementById(`cartela-${selectedCartelaId}`).classList.add('selected');
         }
 
-        // 7. BACK ቁልፍ
+        function renderLiveCartela(id) {
+            document.getElementById('my-card-num-title').innerText = id;
+            let grid = document.getElementById('live-bingo-grid');
+            grid.innerHTML = '';
+            let numbers = generateBingoNumbers(id);
+
+            numbers.forEach(val => {
+                let cell = document.createElement('div');
+                cell.className = 'bingo-box';
+                cell.dataset.number = val;
+
+                if (val === 'F') {
+                    cell.innerText = 'F';
+                    cell.classList.add('free-space');
+                } else {
+                    cell.innerText = val;
+                    if (drawnNumbersSet.has(val)) {
+                        cell.classList.add('matched');
+                    }
+                }
+                grid.appendChild(cell);
+            });
+
+            document.getElementById('my-live-cartela-section').style.display = 'block';
+        }
+
         function goBackToStakes() {
             if (socket) socket.close();
             selectedCartelaId = null;
+            drawnNumbersSet.clear();
             document.getElementById('cartela-room-section').style.display = 'none';
             document.getElementById('stake-section').style.display = 'block';
         }
 
-        // 8. WebSocket ማገናኛ እና ክስተቶችን መቆጣጠሪያ
         function connectWebSocket(stake) {
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
             socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/room_${stake}/`);
@@ -274,28 +300,33 @@
             socket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
                 
-                // በሌላ ተጫዋች የተወሰደ ካርቴላ መቀየር
                 if (data.type === 'cartela_selected') {
                     const btn = document.getElementById(`cartela-${data.cartela_id}`);
                     if (btn) {
                         btn.classList.add('taken');
                         btn.disabled = true;
                     }
-                }
-                // የ 45 ሰከንድ ቆጠራ ሲመጣ
+                } 
                 else if (data.type === 'timer_update') {
                     document.getElementById('timer-display').innerText = `ጨዋታው ለመጀመር: ${data.seconds} ሰከንድ`;
-                }
-                // ጨዋታው ሲጀምር
+                } 
                 else if (data.type === 'game_started') {
                     document.getElementById('timer-display').innerText = "ጨዋታው ተጀምሯል!";
                     document.getElementById('claim-bingo-btn').style.display = 'inline-block';
-                }
-                // አዲስ ቁጥር ሲወጣ
+                    document.getElementById('cartela-grid').style.display = 'none'; // ጨዋታ ሲጀምር የ 400ው ዝርዝር ይደበቃል
+                } 
                 else if (data.type === 'number_drawn') {
-                    document.getElementById('last-drawn-number').innerText = `ወጣቱ ቁጥር: ${data.number}`;
-                }
-                // ጨዋታው ሲያልቅ/አሸናፊ ሲኖር
+                    let num = data.number;
+                    drawnNumbersSet.add(num);
+                    document.getElementById('last-drawn-number').innerText = `ወጣቱ ቁጥር: ${num}`;
+
+                    // በራስ-ሰር በያዙት ካርቴላ ላይ የወጣውን ቁጥር ማብራት (Auto Highlight)
+                    document.querySelectorAll('#live-bingo-grid .bingo-box').forEach(box => {
+                        if (box.dataset.number == num) {
+                            box.classList.add('matched');
+                        }
+                    });
+                } 
                 else if (data.type === 'game_over') {
                     alert(`አሸናፊ: ${data.winner} (ካርቴላ ቁጥር ${data.cartela_id})! አዲስ ጨዋታ ይጀምራል።`);
                     location.reload();
@@ -303,7 +334,6 @@
             };
         }
 
-        // 9. BINGO ጥሪ ማድረጊያ function
         function claimBingo() {
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({ 'action': 'claim_bingo' }));
