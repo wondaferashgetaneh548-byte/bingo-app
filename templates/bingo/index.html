@@ -55,11 +55,6 @@
             font-size: 14px;
             box-sizing: border-box;
         }
-        .input-group input:focus {
-            border-color: #007bff;
-            outline: none;
-            background-color: #fff;
-        }
         .login-btn {
             width: 100%;
             padding: 12px;
@@ -72,23 +67,6 @@
             cursor: pointer;
             margin-top: 10px;
         }
-        .login-btn:hover {
-            background-color: #0056b3;
-        }
-        .links {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .links a {
-            display: block;
-            color: #007bff;
-            text-decoration: none;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        .links a:hover {
-            text-decoration: underline;
-        }
         .error-msg {
             color: #dc3545;
             text-align: center;
@@ -98,37 +76,24 @@
     </style>
 </head>
 <body>
-
     <div class="login-card">
         <h2>Login</h2>
         <p>Sign in to continue.</p>
-
-        <!-- Django Login Form -->
         <form method="POST" action="">
             {% csrf_token %}
-
             {% if error_message %}
                 <div class="error-msg">{{ error_message }}</div>
             {% endif %}
-
             <div class="input-group">
                 <label for="phone_number">Phone Number</label>
                 <input type="text" id="phone_number" name="phone_number" placeholder="Enter Phonenumber" required>
             </div>
-
             <div class="input-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" placeholder="Enter Password" required>
             </div>
-
             <button type="submit" class="login-btn">Log in</button>
         </form>
-
-        <div class="links">
-            <a href="#">Forgot Password?</a>
-            <a href="#">Signup!</a>
-        </div>
     </div>
-
 </body>
 </html>
