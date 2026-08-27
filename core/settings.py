@@ -9,6 +9,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# የ CSRF ስህተትን ለማስተካከል ይህንን መጨመር አለብዎት
+CSRF_TRUSTED_ORIGINS = [
+    'https://bingo-app-1-91no.onrender.com',
+]
+
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
