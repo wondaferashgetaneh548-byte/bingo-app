@@ -65,8 +65,7 @@
         .btn-modal-back { background: #6c757d; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
         .btn-modal-confirm { background: #28a745; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
         
-        .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 20px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 10px rgba(220,53,69,0.4); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 20px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 10px rgba(220,53,69,0.4); }
         
         /* Fixed Bottom Navigation Bar Styles */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #170424; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; align-items: center; padding: 8px 0; z-index: 900; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); }
@@ -236,6 +235,46 @@
         let selectedCartelaId = null;
         let socket = null;
         let drawnNumbersSet = new Set();
+        let myCardNumbers = [];
+
+        // --- የድምፅ ውጤቶች ማጫወቻ (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'number') {
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } else if (type === 'match') {
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'win') {
+                let now = audioCtx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    let o = audioCtx.createOscillator();
+                    let g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + i * 0.1);
+                    g.gain.setValueAtTime(0.2, now + i * 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+                    o.start(now + i * 0.1);
+                    o.stop(now + i * 0.1 + 0.3);
+                });
+            }
+        }
 
         function openRoom(stake) {
             selectedStake = stake;
@@ -328,77 +367,30 @@
             document.getElementById('my-card-num-title').innerText = id;
             let grid = document.getElementById('live-bingo-grid');
             grid.innerHTML = '';
-            generateBingoNumbers(id).forEach(val => {
+            myCardNumbers = generateBingoNumbers(id);
+            
+            myCardNumbers.forEach((val, index) => {
                 let cell = document.createElement('div');
                 cell.className = 'bingo-box';
+                cell.dataset.index = index;
                 cell.dataset.number = val;
-                if (val === 'F') { cell.innerText = 'F'; cell.classList.add('free-space matched'); }
-                else {
+                if (val === 'F') { 
+                    cell.innerText = 'F'; 
+                    cell.classList.add('free-space', 'matched'); 
+                } else {
                     cell.innerText = val;
                     if (drawnNumbersSet.has(val)) cell.classList.add('matched');
                 }
                 grid.appendChild(cell);
             });
             document.getElementById('my-live-cartela-section').style.display = 'block';
-            checkWinningPatterns();
-        }
-
-        // ሐተታ፡ አግድም፣ ቋሚ፣ ዲያጎናል ወይም 4ቱ ኮርነሮች መሟላታቸውን ማረጋገጫ ሎጂክ
-        function checkWinningPatterns() {
-            if (!selectedCartelaId) return;
-            const boxes = document.querySelectorAll('#live-bingo-grid .bingo-box');
-            if (boxes.length !== 25) return;
-
-            let matrix = [];
-            for (let i = 0; i < 5; i++) {
-                matrix.push(Array.from(boxes).slice(i * 5, (i + 1) * 5));
-            }
-
-            let isWon = false;
-
-            // 1. አግድም (Horizontal Rows)
-            for (let r = 0; r < 5; r++) {
-                if (matrix[r].every(cell => cell.classList.contains('matched'))) {
-                    isWon = true;
-                }
-            }
-
-            // 2. ቋሚ (Vertical Columns)
-            for (let c = 0; c < 5; c++) {
-                let colMatched = true;
-                for (let r = 0; r < 5; r++) {
-                    if (!matrix[r][c].classList.contains('matched')) {
-                        colMatched = false;
-                        break;
-                    }
-                }
-                if (colMatched) isWon = true;
-            }
-
-            // 3. ዲያጎናል (Diagonals)
-            let diag1 = [matrix[0][0], matrix[1][1], matrix[2][2], matrix[3][3], matrix[4][4]];
-            let diag2 = [matrix[0][4], matrix[1][3], matrix[2][2], matrix[3][1], matrix[4][0]];
-            if (diag1.every(cell => cell.classList.contains('matched')) || diag2.every(cell => cell.classList.contains('matched'))) {
-                isWon = true;
-            }
-
-            // 4. 4ቱ ኮርነሮች (4 Corners)
-            let corners = [matrix[0][0], matrix[0][4], matrix[4][0], matrix[4][4]];
-            if (corners.every(cell => cell.classList.contains('matched'))) {
-                isWon = true;
-            }
-
-            // አሸናፊ ከደረሰ የ BINGO አዝራርን ማሳየት
-            const claimBtn = document.getElementById('claim-bingo-btn');
-            if (isWon) {
-                claimBtn.style.display = 'inline-block';
-            }
         }
 
         function goBackToStakes() {
             if (socket) socket.close();
             selectedCartelaId = null;
             drawnNumbersSet.clear();
+            myCardNumbers = [];
             document.getElementById('cartela-room-section').style.display = 'none';
             document.getElementById('stake-section').style.display = 'block';
         }
@@ -406,6 +398,7 @@
         function connectWebSocket(stake) {
             const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
             socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/bingo/room_${stake}/`);
+            
             socket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
                 if (data.type === 'cartela_selected') {
@@ -420,24 +413,72 @@
                     let num = data.number;
                     drawnNumbersSet.add(num);
                     document.getElementById('last-drawn-number').innerText = `ወጣቱ ቁጥር: ${num}`;
+                    playSound('number');
+
+                    // አውቶ-ማቺንግ (Auto-matching)
                     document.querySelectorAll('#live-bingo-grid .bingo-box').forEach(box => {
-                        if (box.dataset.number == num) box.classList.add('matched');
+                        if (box.dataset.number == num) {
+                            box.classList.add('matched');
+                            playSound('match');
+                        }
                     });
-                    // ቁጥር ሲወጣ አሸናፊ መሆኑን በራስ-ሰር እንፈትሻለን
-                    checkWinningPatterns();
+
+                    // የማሸነፊያ ቅጦችን ማረጋገጥ (Rows, Columns, Diagonals, Corners)
+                    if (selectedCartelaId && myCardNumbers.length > 0 && checkWinCondition()) {
+                        claimBingo();
+                    }
+
                 } else if (data.type === 'game_over') {
+                    playSound('win');
                     alert(`አሸናፊ: ${data.winner} (ካርቴላ ቁጥር ${data.cartela_id})! አዲስ ጨዋታ ይጀምራል።`);
+                    
+                    if (data.new_balance) {
+                        document.querySelector('.wallet-badge').innerText = `👛 ETB ${data.new_balance}`;
+                    }
+                    
                     location.reload();
                 }
             };
         }
 
+        // --- የድል ሁኔታዎችን ማረጋገጫ (Rows, Columns, Diagonals, 4 Corners) ---
+        function checkWinCondition() {
+            const boxes = document.querySelectorAll('#live-bingo-grid .bingo-box');
+            if (boxes.length !== 25) return false;
+            
+            let matrix = [];
+            for(let i=0; i<5; i++) {
+                matrix[i] = [];
+                for(let j=0; j<5; j++) {
+                    matrix[i][j] = boxes[i*5 + j].classList.contains('matched');
+                }
+            }
+
+            // 1. አግድም (Rows) እና ቀጥ ያለ (Columns)
+            for (let i = 0; i < 5; i++) {
+                if (matrix[i].every(v => v)) return true;
+                if (matrix.every(row => row[i])) return true;
+            }
+
+            // 2. ዲያጎናል (Diagonals)
+            let diag1 = [matrix[0][0], matrix[1][1], matrix[2][2], matrix[3][3], matrix[4][4]].every(v => v);
+            let diag2 = [matrix[0][4], matrix[1][3], matrix[2][2], matrix[3][1], matrix[4][0]].every(v => v);
+            if (diag1 || diag2) return true;
+
+            // 3. 4ቱ ኮርነሮች (4 Corners)
+            let corners = matrix[0][0] && matrix[0][4] && matrix[4][0] && matrix[4][4];
+            if (corners) return true;
+
+            return false;
+        }
+
         function claimBingo() {
             if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ 'action': 'claim_bingo', 'cartela_id': selectedCartelaId }));
+                socket.send(JSON.stringify({ 
+                    'action': 'claim_bingo', 
+                    'cartela_id': selectedCartelaId 
+                }));
             }
-            alert("🎉 BINGO! አሸናፊነቱ ተመዝግቧል!");
-            location.reload();
         }
     </script>
 </body>
