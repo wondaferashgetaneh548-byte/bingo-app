@@ -12,7 +12,7 @@
         .logo { font-size: 1.4rem; font-weight: bold; color: #ffc107; display: flex; align-items: center; gap: 8px; }
         .nav-right { display: flex; gap: 12px; align-items: center; }
         .btn-refresh { background: #ffc107; color: #111; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
-        .wallet-badge { background: #ffc107; color: #111; padding: 6px 14px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 13px; }
+        .wallet-badge { background: #ffc107; color: #111; padding: 6px 14px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 5px; }
 
         .container { max-width: 850px; margin: 25px auto; padding: 0 15px; }
         
@@ -67,11 +67,12 @@
         
         .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 20px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 10px rgba(220,53,69,0.4); }
         
-        /* Bottom Navigation Bar */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #170424; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; padding: 8px 0; z-index: 900; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); }
-        .nav-item { color: #999; text-decoration: none; font-size: 11px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-        .nav-item.active { color: #ffc107; }
-        .bonus-btn-wrapper { background: #ffc107; width: 48px; height: 48px; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-top: -24px; border: 4px solid #170424; color: #111; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        /* Fixed Bottom Navigation Bar Styles */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #170424; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; align-items: center; padding: 8px 0; z-index: 900; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); }
+        .nav-item { color: #999; text-decoration: none; font-size: 11px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; }
+        .nav-item span.icon { font-size: 18px; }
+        .nav-item.active { color: #ffc107 !important; }
+        .bonus-btn-wrapper { background: #ffc107; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-top: -26px; border: 4px solid #170424; color: #111; font-size: 22px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -204,13 +205,28 @@
         </div>
     </div>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Fixed Bottom Navigation Bar -->
     <div class="bottom-nav">
-        <a href="#" class="nav-item active">🏠 HOME</a>
-        <a href="#" class="nav-item">👛 WALLET</a>
-        <a href="#" class="nav-item"><div class="bonus-btn-wrapper">🎁</div> BONUS</a>
-        <a href="#" class="nav-item">💬 CONTACT</a>
-        <a href="#" class="nav-item">🏆 LEADERBOARD</a>
+        <a href="#" class="nav-item active">
+            <span class="icon">🏠</span>
+            <span>HOME</span>
+        </a>
+        <a href="#" class="nav-item">
+            <span class="icon">👛</span>
+            <span>WALLET</span>
+        </a>
+        <a href="#" class="nav-item">
+            <div class="bonus-btn-wrapper">🎁</div>
+            <span>BONUS</span>
+        </a>
+        <a href="#" class="nav-item">
+            <span class="icon">💬</span>
+            <span>CONTACT</span>
+        </a>
+        <a href="#" class="nav-item">
+            <span class="icon">🏆</span>
+            <span>LEADERBOARD</span>
+        </a>
     </div>
 
     <!-- JavaScript Logic -->
