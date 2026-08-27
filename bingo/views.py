@@ -28,8 +28,8 @@ def index(request):
 
 @login_required
 def home(request):
-    """2. ከ Login በኋላ የሚመጣው Landing Page (ቢንጎ ጌም + Play Button)"""
-    return render(request, 'bingo/home.html')
+    """2. ከ Login በኋላ የሚመጣው Landing Page (home.html ፋይል ስለሌለ ወደ room.html ይመራዋል)"""
+    return render(request, 'bingo/room.html')
 
 @login_required
 def rooms_list(request):
