@@ -65,7 +65,8 @@
         .btn-modal-back { background: #6c757d; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
         .btn-modal-confirm { background: #28a745; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; }
         
-        .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 20px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 10px rgba(220,53,69,0.4); }
+        .btn-bingo-claim { background: #dc3545; color: #fff; font-size: 20px; font-weight: bold; padding: 12px 35px; border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; display: none; box-shadow: 0 4px 10px rgba(220,53,69,0.4); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         
         /* Fixed Bottom Navigation Bar Styles */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #170424; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-around; align-items: center; padding: 8px 0; z-index: 900; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); }
@@ -77,7 +78,7 @@
 </head>
 <body>
     <div class="navbar">
-        <div class="logo">⏰ ጌች BINGO</div>
+        <div class="logo">⏰ ጌች  BINGO</div>
         <div class="nav-right">
             <button class="btn-refresh" onclick="location.reload()">Refresh</button>
             <a href="#" class="wallet-badge">👛 ETB 500.00</a>
@@ -331,7 +332,7 @@
                 let cell = document.createElement('div');
                 cell.className = 'bingo-box';
                 cell.dataset.number = val;
-                if (val === 'F') { cell.innerText = 'F'; cell.classList.add('free-space'); }
+                if (val === 'F') { cell.innerText = 'F'; cell.classList.add('free-space matched'); }
                 else {
                     cell.innerText = val;
                     if (drawnNumbersSet.has(val)) cell.classList.add('matched');
@@ -339,6 +340,59 @@
                 grid.appendChild(cell);
             });
             document.getElementById('my-live-cartela-section').style.display = 'block';
+            checkWinningPatterns();
+        }
+
+        // ሐተታ፡ አግድም፣ ቋሚ፣ ዲያጎናል ወይም 4ቱ ኮርነሮች መሟላታቸውን ማረጋገጫ ሎጂክ
+        function checkWinningPatterns() {
+            if (!selectedCartelaId) return;
+            const boxes = document.querySelectorAll('#live-bingo-grid .bingo-box');
+            if (boxes.length !== 25) return;
+
+            let matrix = [];
+            for (let i = 0; i < 5; i++) {
+                matrix.push(Array.from(boxes).slice(i * 5, (i + 1) * 5));
+            }
+
+            let isWon = false;
+
+            // 1. አግድም (Horizontal Rows)
+            for (let r = 0; r < 5; r++) {
+                if (matrix[r].every(cell => cell.classList.contains('matched'))) {
+                    isWon = true;
+                }
+            }
+
+            // 2. ቋሚ (Vertical Columns)
+            for (let c = 0; c < 5; c++) {
+                let colMatched = true;
+                for (let r = 0; r < 5; r++) {
+                    if (!matrix[r][c].classList.contains('matched')) {
+                        colMatched = false;
+                        break;
+                    }
+                }
+                if (colMatched) isWon = true;
+            }
+
+            // 3. ዲያጎናል (Diagonals)
+            let diag1 = [matrix[0][0], matrix[1][1], matrix[2][2], matrix[3][3], matrix[4][4]];
+            let diag2 = [matrix[0][4], matrix[1][3], matrix[2][2], matrix[3][1], matrix[4][0]];
+            if (diag1.every(cell => cell.classList.contains('matched')) || diag2.every(cell => cell.classList.contains('matched'))) {
+                isWon = true;
+            }
+
+            // 4. 4ቱ ኮርነሮች (4 Corners)
+            let corners = [matrix[0][0], matrix[0][4], matrix[4][0], matrix[4][4]];
+            if (corners.every(cell => cell.classList.contains('matched'))) {
+                isWon = true;
+            }
+
+            // አሸናፊ ከደረሰ የ BINGO አዝራርን ማሳየት
+            const claimBtn = document.getElementById('claim-bingo-btn');
+            if (isWon) {
+                claimBtn.style.display = 'inline-block';
+            }
         }
 
         function goBackToStakes() {
@@ -361,7 +415,6 @@
                     document.getElementById('timer-display').innerText = `ጨዋታው ለመጀመር: ${data.seconds} ሰከንድ`;
                 } else if (data.type === 'game_started') {
                     document.getElementById('timer-display').innerText = "ጨዋታው ተጀምሯል!";
-                    document.getElementById('claim-bingo-btn').style.display = 'inline-block';
                     document.getElementById('cartela-grid').style.display = 'none';
                 } else if (data.type === 'number_drawn') {
                     let num = data.number;
@@ -370,6 +423,8 @@
                     document.querySelectorAll('#live-bingo-grid .bingo-box').forEach(box => {
                         if (box.dataset.number == num) box.classList.add('matched');
                     });
+                    // ቁጥር ሲወጣ አሸናፊ መሆኑን በራስ-ሰር እንፈትሻለን
+                    checkWinningPatterns();
                 } else if (data.type === 'game_over') {
                     alert(`አሸናፊ: ${data.winner} (ካርቴላ ቁጥር ${data.cartela_id})! አዲስ ጨዋታ ይጀምራል።`);
                     location.reload();
@@ -379,8 +434,10 @@
 
         function claimBingo() {
             if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ 'action': 'claim_bingo' }));
+                socket.send(JSON.stringify({ 'action': 'claim_bingo', 'cartela_id': selectedCartelaId }));
             }
+            alert("🎉 BINGO! አሸናፊነቱ ተመዝግቧል!");
+            location.reload();
         }
     </script>
 </body>
