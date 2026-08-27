@@ -11,11 +11,11 @@ def index(request):
     
     error_message = None
     if request.method == 'POST':
-        phone_number = request.POST.get('0986864455')
-        password = request.POST.get('getaneh')
+        phone_number = request.POST.get('phone_number')
+        password = request.POST.get('password')
         
         # ስልክ ቁጥሩን እንደ ዩሰርኔም በመጠቀም ተጠቃሚውን ማረጋገጥ
-        user = authenticate(request, username=0986864455, password=getaneh)
+        user = authenticate(request, username=phone_number, password=password)
         
         if user is not None:
             login(request, user)
