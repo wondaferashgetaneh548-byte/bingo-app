@@ -9,7 +9,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-# የ CSRF ስህተትን ለማስተካከል ይህንን መጨመር አለብዎት
+# የ CSRF ስህተትን ለማስተካከል Render ዩአርኤልን መመዝገብ
 CSRF_TRUSTED_ORIGINS = [
     'https://bingo-app-1-91no.onrender.com',
 ]
@@ -89,3 +89,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# የሎጊን እና የሰርቨር ማዞሪያ መቼቶች (ለ 404 ስህተት መከላከያ)
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/home/'
+LOGOUT_REDIRECT_URL = '/'
