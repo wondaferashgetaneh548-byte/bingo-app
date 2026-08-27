@@ -6,7 +6,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 ROOMS = {}
 
 def generate_cartela_matrix(cartela_id):
-    # ለእያንዳንዱ ካርቴላ ቁጥር ሁልጊዜ ቋሚ ቁጥሮች በየ B-I-N-G-O አምዱ እንዲወጡ ማድረግ
+    # ለእያንዳንዱ ካርቴላ ቁጥር ቋሚ ቁጥሮች በየ B-I-N-G-O አምዱ እንዲወጡ ማድረግ
     rng = random.Random(int(cartela_id) * 997)
     ranges = {
         'B': range(1, 16),
@@ -15,10 +15,14 @@ def generate_cartela_matrix(cartela_id):
         'G': range(46, 61),
         'O': range(61, 76)
     }
+    
+    # N አምድ 4 ቁጥሮች ይወስዳል (መሃሉ FREE ስለሚሆን)
+    n_numbers = rng.sample(ranges['N'], 4)
+    
     columns = {
         'B': rng.sample(ranges['B'], 5),
         'I': rng.sample(ranges['I'], 5),
-        'N': rng.sample(ranges['N'], 4),  # N አምድ መሃል 'FREE' ስላለው 4 ቁጥር ብቻ
+        'N': [n_numbers[0], n_numbers[1], 'FREE', n_numbers[2], n_numbers[3]],
         'G': rng.sample(ranges['G'], 5),
         'O': rng.sample(ranges['O'], 5)
     }
@@ -28,7 +32,7 @@ def generate_cartela_matrix(cartela_id):
         row = [
             columns['B'][i],
             columns['I'][i],
-            columns['N'][i] if i < 2 else ('FREE' if i == 2 else columns['N'][i - 1]),
+            columns['N'][i],
             columns['G'][i],
             columns['O'][i]
         ]
@@ -225,7 +229,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
     # ክፍሉን ለአዲስ ጨዋታ ማስተካከል እና ለተጫዋቾች ማሳወቅ
     async def reset_room_async(self):
         if self.room_name in ROOMS:
-            # የቀሩ ታስኮችን Cancel ማድረግ
             if ROOMS[self.room_name]['task']:
                 ROOMS[self.room_name]['task'].cancel()
             if ROOMS[self.room_name]['draw_task']:
@@ -239,7 +242,6 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 'draw_task': None
             }
 
-            # ለሁሉም ተጫዋቾች ገጻቸው እንዲጸዳ ማሳወቅ
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {'type': 'room_reset'}
