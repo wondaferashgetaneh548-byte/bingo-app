@@ -1,13 +1,30 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login
 import json
 
 def index(request):
-    """1. መጀመሪያ የሚከፈተው - Login Page"""
+    """1. መጀመሪያ የሚከፈተው - Login Page (በስልክ ቁጥር እና ፓስወርድ መግቢያ)"""
     if request.user.is_authenticated:
         return redirect('home')
-    return render(request, 'bingo/index.html')
+    
+    error_message = None
+    if request.method == 'POST':
+        phone_number = request.POST.get('phone_number')
+        password = request.POST.get('password')
+        
+        # ስልክ ቁጥሩን እንደ ዩሰርኔም በመጠቀም ተጠቃሚውን ማረጋገጥ
+        user = authenticate(request, username=phone_number, password=password)
+        
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            error_message = "የስልክ ቁጥር ወይም ፓስወርድ ስህተት ነው!"
+
+    context = {'error_message': error_message}
+    return render(request, 'bingo/index.html', context)
 
 @login_required
 def home(request):
