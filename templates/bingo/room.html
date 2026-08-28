@@ -357,9 +357,10 @@
         }
 
         // ሙሉውን ሰሌዳ እና ማህደረ ትውስታ በአግባቡ ሪሴት የሚያደርገው ክፍል (ካርቴላ ሪሴት ችግር መፍቻ)
-        function resetRoomState() {
+       function resetRoomState() {
             isGameStarted = false;
             
+            // 1. የድሮ መረጃዎችን እና ምርጫዎችን ሙሉ በሙሉ ማጽዳት
             mySelectedCards = {};
             otherTakenCards = {};
             drawnNumbersSet.clear();
@@ -368,12 +369,14 @@
             document.getElementById('my-active-cards-container').innerHTML = '';
             document.getElementById('last-drawn-number').innerText = '';
             
-            let randomOtherCount = Math.floor(Math.random() * 30) + 20;
+            // 2. ለአዲሱ ጨዋታ በዘፈቀደ አዲስ የሌሎች ተጫዋቾችን ካርቴላ መምረጥ
+            let randomOtherCount = Math.floor(Math.random() * 30) + 20; // ከ 20 እስከ 50 የሚሆኑ ካርቴላዎች በሌሎች ይያዛሉ
             for(let i = 0; i < randomOtherCount; i++) {
                 let randomCardId = Math.floor(Math.random() * 400) + 1;
                 otherTakenCards[randomCardId] = "ሌላ ተጫዋች";
             }
 
+            // 3. ሰሌዳውን በአዲስ መልክ ሙሉ በሙሉ ዳግም መሳል (ይህ የቀድሞውን ብርቱካናማ ቀለም ሙሉ በሙሉ ያጸዳል)
             render400Cartelas();
         }
 
