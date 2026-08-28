@@ -262,16 +262,64 @@
         </div>
     </div>
 
-    <!-- JavaScript System Logic -->
-    <script>
-        function sendOTP() {
+   <script>
+        // የቴሌግራም ዌብ አፕ (Telegram WebApp) ማስጀመሪያ
+        let tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.expand(); // አፑን ሙሉ ስክሪን እንዲያደርግ
+        }
+
+        // OTP በቴሌግራም ቦት በኩል መላክ
+        async function sendOTP() {
             let phone = document.getElementById('reg-phone').value;
-            if(!phone) { alert("እባክዎ ቀድመው ስልክ ቁጥር ያስገቡ!"); return; }
-            alert("የኦቲፒ (OTP) ኮድ ወደ " + phone + " ተልኳል!");
+            if(!phone) { 
+                alert("እባክዎ ቀድመው ስልክ ቁጥር ያስገቡ!"); 
+                return; 
+            }
+
+            // የ 4 ዲጂት የ OTP ኮድ ማመንጨት
+            let otpCode = Math.floor(1000 + Math.random() * 9000);
+
+            // ከቴሌግራም ሚኒ አፕ የ ተጠቃሚውን Chat ID በቀጥታ መቀበል
+            let chatId = "";
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                chatId = tg.initDataUnsafe.user.id;
+            }
+
+            if (!chatId) {
+                alert("እባክዎ መተግበሪያውን ከቴሌግራም ቦት (http://t.me/gechbingo_app_bot/play) ውስጥ ይክፈቱት!");
+                return;
+            }
+
+            // የቦት ቶክንዎን እዚህ ያስገቡ (ማስታወሻ: ለምርት ስራ ሲሆን ይህንን በ Backend ቢሰሩት የበለጠ ደህንነቱ የተጠበቀ ነው)
+            const botToken = 'YOUR_BOT_TOKEN_HERE'; 
+            const message = `🎲 የጌች BINGO ማረጋገጫ ኮድዎ (OTP): ${otpCode}\n\nስልክ ቁጥር: ${phone}\nእባክዎ ይህንን ኮድ በመተግበሪያው ላይ ያስገቡ።`;
+
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+
+            try {
+                let response = await fetch(url);
+                let data = await response.json();
+                
+                if (data.ok) {
+                    alert(`የኦቲፒ (OTP) ኮድ በቴሌግራም ቦትዎ ተልኳል!`);
+                    window.generatedOTP = otpCode; // ለወደፊት ማረጋገጫ ማስቀመጫ
+                } else {
+                    alert("OTP መላክ አልተቻለም። እባክዎ ቦቱን (Start) ማድረጉን ያረጋግጡ።");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("የኔትወርክ ስህተት አጋጥሟል!");
+            }
         }
 
         function handleRegister(event) {
             event.preventDefault();
+            
+            // የ OTP ማረጋገጫ (ከተፈለገ እዚህ ጋር ማረጋገጥ ይቻላል)
+            // let userEnteredOtp = document.getElementById('otp-input-field').value;
+            // if(userEnteredOtp != window.generatedOTP) { alert("የተሳሳተ OTP ኮድ!"); return; }
+
             alert("ምዝገባዎ በተሳካ ሁኔታ ተከናውኗል!");
             switchToGameApp();
         }
@@ -308,10 +356,10 @@
             startCountdown();
         }
 
+        // ሙሉውን ሰሌዳ እና ማህደረ ትውስታ በአግባቡ ሪሴት የሚያደርገው ክፍል (ካርቴላ ሪሴት ችግር መፍቻ)
         function resetRoomState() {
             isGameStarted = false;
             
-            // 💡 እዚህ ጋር የድሮዎቹ የተያዙ ካርቴላዎች ሙሉ በሙሉ እንዲጸዱ ይደረጋል (Fixes the issue)
             mySelectedCards = {};
             otherTakenCards = {};
             drawnNumbersSet.clear();
@@ -320,12 +368,12 @@
             document.getElementById('my-active-cards-container').innerHTML = '';
             document.getElementById('last-drawn-number').innerText = '';
             
-            // ለአዲሱ ጨዋታ አዲስ የተያዙ ካርቴላዎች በዘፈቀደ እንዲመደቡ ይደረጋል
             let randomOtherCount = Math.floor(Math.random() * 30) + 20;
             for(let i = 0; i < randomOtherCount; i++) {
                 let randomCardId = Math.floor(Math.random() * 400) + 1;
                 otherTakenCards[randomCardId] = "ሌላ ተጫዋች";
             }
+
             render400Cartelas();
         }
 
@@ -471,7 +519,7 @@
 
         function render400Cartelas() {
             const grid = document.getElementById('cartela-grid');
-            grid.innerHTML = '';
+            grid.innerHTML = ''; 
             for (let i = 1; i <= 400; i++) {
                 const btn = document.createElement('button');
                 btn.className = 'cartela-btn';
@@ -541,64 +589,81 @@
             generateBingoNumbers(id).forEach(val => {
                 let cell = document.createElement('div');
                 cell.className = 'bingo-box';
-                if (val === 'F') { cell.innerText = 'F'; cell.classList.add('free-space'); }
-                else { cell.innerText = val; }
+                cell.innerText = val;
+                if (val === 'F') cell.classList.add('free-space');
                 grid.appendChild(cell);
             });
             document.getElementById('cardPreviewModal').style.display = 'flex';
         }
 
         function confirmCartela() {
-            if (!previewCartelaId || isGameStarted) {
-                alert("ካርቴላ መያዝ አይቻልም!");
-                return;
-            }
-            closeModal('cardPreviewModal');
+            if (!previewCartelaId) return;
             mySelectedCards[previewCartelaId] = generateBingoNumbers(previewCartelaId);
-            document.getElementById(`cartela-${previewCartelaId}`).classList.add('selected');
+            
+            let btn = document.getElementById(`cartela-${previewCartelaId}`);
+            if (btn) {
+                btn.classList.add('selected');
+                otherTakenCards[previewCartelaId] = "እርስዎ (You)";
+            }
+            
+            closeModal('cardPreviewModal');
             renderAllMyLiveCards();
         }
 
         function renderAllMyLiveCards() {
-            const container = document.getElementById('my-active-cards-container');
+            let container = document.getElementById('my-active-cards-container');
             container.innerHTML = '';
-            if (Object.keys(mySelectedCards).length > 0) {
-                document.getElementById('my-live-cartelas-section').style.display = 'block';
-            } else {
-                document.getElementById('my-live-cartelas-section').style.display = 'none';
+            let liveSection = document.getElementById('my-live-cartelas-section');
+            
+            let keys = Object.keys(mySelectedCards);
+            if (keys.length === 0) {
+                liveSection.style.display = 'none';
+                return;
             }
-            for (let cardId in mySelectedCards) {
+            
+            liveSection.style.display = 'block';
+            keys.forEach(cardId => {
                 let cardNumbers = mySelectedCards[cardId];
-                let wrapper = document.createElement('div');
-                wrapper.className = 'single-card-wrapper';
-                wrapper.innerHTML = `
-                    <h4 style="margin-bottom:8px; color:#ffc107;">ካርቴላ ቁጥር: ${cardId}</h4>
-                    <div class="bingo-header">
-                        <span class="b-circle b-purple">B</span>
-                        <span class="b-circle b-yellow">I</span>
-                        <span class="b-circle b-red">N</span>
-                        <span class="b-circle b-green">G</span>
-                        <span class="b-circle b-red2">O</span>
-                    </div>
-                    <div class="bingo-grid" id="live-grid-${cardId}"></div>
-                `;
-                container.appendChild(wrapper);
-                let grid = document.getElementById(`live-grid-${cardId}`);
-                cardNumbers.forEach((val) => {
-                    let cell = document.createElement('div');
-                    cell.className = 'bingo-box';
-                    if (val === 'F') {
-                        cell.innerText = 'F';
-                        cell.classList.add('free-space', 'matched');
-                    } else {
-                        cell.innerText = val;
-                        if (drawnNumbersSet.has(val)) {
-                            cell.classList.add('matched');
-                        }
-                    }
-                    grid.appendChild(cell);
+                let cardWrapper = document.createElement('div');
+                cardWrapper.className = 'single-card-wrapper';
+                
+                let title = document.createElement('div');
+                title.style.cssText = "font-weight:bold; color:#ffc107; margin-bottom:8px; font-size:14px;";
+                title.innerText = `ካርቴላ ቁጥር: ${cardId}`;
+                cardWrapper.appendChild(title);
+
+                let headerDiv = document.createElement('div');
+                headerDiv.className = 'bingo-header';
+                let headers = [
+                    {lbl:'B', cls:'b-purple'}, {lbl:'I', cls:'b-yellow'}, 
+                    {lbl:'N', cls:'b-red'}, {lbl:'G', cls:'b-green'}, {lbl:'O', cls:'b-red2'}
+                ];
+                headers.forEach(h => {
+                    let span = document.createElement('span');
+                    span.className = `b-circle ${h.cls}`;
+                    span.innerText = h.lbl;
+                    headerDiv.appendChild(span);
                 });
-            }
+                cardWrapper.appendChild(headerDiv);
+
+                let gridDiv = document.createElement('div');
+                gridDiv.className = 'bingo-grid';
+                
+                cardNumbers.forEach(val => {
+                    let box = document.createElement('div');
+                    box.className = 'bingo-box';
+                    box.innerText = val;
+                    if (val === 'F') {
+                        box.classList.add('free-space');
+                    } else if (drawnNumbersSet.has(val)) {
+                        box.classList.add('matched');
+                    }
+                    gridDiv.appendChild(box);
+                });
+                
+                cardWrapper.appendChild(gridDiv);
+                container.appendChild(cardWrapper);
+            });
         }
     </script>
 </body>
