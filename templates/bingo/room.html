@@ -208,7 +208,6 @@
             <div class="modal-content" style="max-width: 400px;">
                 <h3 style="color: #ffc107; margin-bottom: 10px;">የዋሌት አስተዳደር (Wallet)</h3>
                 
-                <!-- Balance Overview Cards (ምስሉ ላይ እንዳሉት) -->
                 <div style="display: flex; gap: 8px; margin-bottom: 15px;">
                     <div style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; flex: 1; text-align: left;">
                         <div style="font-size: 10px; color: #aaa;">PAYABLE BALANCE</div>
@@ -282,6 +281,13 @@
             document.getElementById('game-view').classList.add('active');
         }
 
+        function goBackToStakes() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            if (drawInterval) clearInterval(drawInterval);
+            document.getElementById('cartela-room-section').style.display = 'none';
+            document.getElementById('stake-section').style.display = 'block';
+        }
+
         let selectedStake = 10;
         let previewCartelaId = null;
         let drawnNumbersSet = new Set();
@@ -304,13 +310,17 @@
 
         function resetRoomState() {
             isGameStarted = false;
+            
+            // 💡 እዚህ ጋር የድሮዎቹ የተያዙ ካርቴላዎች ሙሉ በሙሉ እንዲጸዱ ይደረጋል (Fixes the issue)
             mySelectedCards = {};
             otherTakenCards = {};
             drawnNumbersSet.clear();
+
             document.getElementById('my-live-cartelas-section').style.display = 'none';
             document.getElementById('my-active-cards-container').innerHTML = '';
             document.getElementById('last-drawn-number').innerText = '';
             
+            // ለአዲሱ ጨዋታ አዲስ የተያዙ ካርቴላዎች በዘፈቀደ እንዲመደቡ ይደረጋል
             let randomOtherCount = Math.floor(Math.random() * 30) + 20;
             for(let i = 0; i < randomOtherCount; i++) {
                 let randomCardId = Math.floor(Math.random() * 400) + 1;
@@ -420,6 +430,45 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
+        function openWalletModal() {
+            document.getElementById('walletModal').style.display = 'flex';
+        }
+
+        function toggleWalletFields() {
+            let action = document.getElementById('wallet-action-type').value;
+            let depositNotice = document.getElementById('deposit-notice');
+            let withdrawFields = document.getElementById('withdraw-fields');
+            if(action === 'deposit') {
+                depositNotice.style.display = 'block';
+                withdrawFields.style.display = 'none';
+            } else {
+                depositNotice.style.display = 'none';
+                withdrawFields.style.display = 'block';
+            }
+        }
+
+        function processWalletTransaction() {
+            let action = document.getElementById('wallet-action-type').value;
+            let amount = parseFloat(document.getElementById('wallet-amount-select').value);
+            if(action === 'deposit') {
+                userBalance += amount;
+                alert(`የ ${amount} Birr የብር ማስገባት ጥያቄዎ ተመዝግቧል!`);
+            } else {
+                let phone = document.getElementById('wallet-account-input').value;
+                if(!phone) { alert("እባክዎ ስልክ ቁጥር ያስገቡ!"); return; }
+                if(userBalance >= amount) {
+                    userBalance -= amount;
+                    alert(`የ ${amount} Birr ማውጣት ጥያቄ ወደ ቁጥር ${phone} ተልኳል!`);
+                } else {
+                    alert("በዋሌትዎ ውስጥ በቂ ገንዘብ የለም!");
+                    return;
+                }
+            }
+            document.getElementById('user-wallet-balance').innerText = userBalance.toFixed(2);
+            document.getElementById('wallet-payable-bal').innerText = `ETB ${userBalance.toFixed(2)}`;
+            closeModal('walletModal');
+        }
+
         function render400Cartelas() {
             const grid = document.getElementById('cartela-grid');
             grid.innerHTML = '';
@@ -513,6 +562,11 @@
         function renderAllMyLiveCards() {
             const container = document.getElementById('my-active-cards-container');
             container.innerHTML = '';
+            if (Object.keys(mySelectedCards).length > 0) {
+                document.getElementById('my-live-cartelas-section').style.display = 'block';
+            } else {
+                document.getElementById('my-live-cartelas-section').style.display = 'none';
+            }
             for (let cardId in mySelectedCards) {
                 let cardNumbers = mySelectedCards[cardId];
                 let wrapper = document.createElement('div');
@@ -538,58 +592,13 @@
                         cell.classList.add('free-space', 'matched');
                     } else {
                         cell.innerText = val;
-                        if (drawnNumbersSet.has(val)) cell.classList.add('matched');
+                        if (drawnNumbersSet.has(val)) {
+                            cell.classList.add('matched');
+                        }
                     }
                     grid.appendChild(cell);
                 });
             }
-            document.getElementById('my-live-cartelas-section').style.display = 'block';
-        }
-
-        function goBackToStakes() {
-            if (countdownTimer) clearInterval(countdownTimer);
-            if (drawInterval) clearInterval(drawInterval);
-            previewCartelaId = null;
-            drawnNumbersSet.clear();
-            mySelectedCards = {};
-            isGameStarted = false;
-            document.getElementById('cartela-room-section').style.display = 'none';
-            document.getElementById('stake-section').style.display = 'block';
-        }
-
-        function openWalletModal() {
-            document.getElementById('walletModal').style.display = 'flex';
-        }
-
-        function toggleWalletFields() {
-            let type = document.getElementById('wallet-action-type').value;
-            document.getElementById('withdraw-fields').style.display = (type === 'withdraw') ? 'block' : 'none';
-            document.getElementById('deposit-notice').style.display = (type === 'deposit') ? 'block' : 'none';
-        }
-
-        function processWalletTransaction() {
-            let type = document.getElementById('wallet-action-type').value;
-            let amount = parseFloat(document.getElementById('wallet-amount-select').value);
-            
-            if (type === 'deposit') {
-                userBalance += amount;
-                alert(`ብር ለማስገባት ወደ ቴሌብር ቁጥር 0986864455 (ጌታነህ ወንዳፍራሽ) የተደረገው ክፍያ ተረጋግጦ ETB ${amount} ወደ ዋሌትዎ ገብቷል!`);
-            } else if (type === 'withdraw') {
-                let account = document.getElementById('wallet-account-input').value;
-                if (!account) {
-                    alert("እባክዎ የራብዎን የቴሌብር/ባንክ አካውንት ስልክ ቁጥር ያስገቡ!");
-                    return;
-                }
-                if (amount > userBalance) {
-                    alert("በቂ ቀሪ ሂሳብ የለዎትም!");
-                    return;
-                }
-                userBalance -= amount;
-                alert(`የብር ማውጣት ጥያቄዎ በተሳካ ሁኔታ ወደ ራስዎ አካውንት (${account}) ተልኳል!`);
-            }
-            document.getElementById('user-wallet-balance').innerText = userBalance.toFixed(2);
-            document.getElementById('wallet-payable-bal').innerText = `ETB ${userBalance.toFixed(2)}`;
-            closeModal('walletModal');
         }
     </script>
 </body>
