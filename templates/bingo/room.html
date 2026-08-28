@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ጌች BINGO - አዲስ ስርዓት</title>
+    <title>ጌች BINGO - የተስተካከለ ዋሌት</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: radial-gradient(circle at center, #3d1b52 0%, #170424 100%); color: white; min-height: 100vh; padding-bottom: 90px; }
@@ -54,7 +54,7 @@
         .single-card-wrapper { background: rgba(45, 20, 70, 0.95); border-radius: 16px; padding: 15px; border: 2px solid #ffc107; max-width: 320px; margin: 0 auto; text-align: center; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #240b36; padding: 25px; border-radius: 16px; width: 90%; max-width: 360px; border: 2px solid #ffc107; text-align: center; }
+        .modal-content { background: #240b36; padding: 25px; border-radius: 16px; width: 90%; max-width: 380px; border: 2px solid #ffc107; text-align: center; }
         .bingo-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
         .b-circle { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: white; }
         .b-purple { background: #4a2574; } .b-yellow { background: #d4ac0d; } .b-red { background: #e74c3c; } .b-green { background: #2ecc71; } .b-red2 { background: #ff0000; }
@@ -80,11 +80,9 @@
             <div class="register-container">
                 <h2>Create new<br>Account</h2>
                 <div class="login-link">Already Registered? <a onclick="switchToGameApp()">Login here</a></div>
-
                 <div class="telegram-notice">
                     አካውንት ለመክፈት በTelegram <a href="http://t.me/gechbingo_app_bot/play" target="_blank">Bot Link</a> ይጠቀሙ
                 </div>
-
                 <form onsubmit="handleRegister(event)">
                     <div class="form-group">
                         <label>Username</label>
@@ -190,7 +188,7 @@
         <div id="winnerModal" class="modal">
             <div class="modal-content">
                 <h2 style="color: #ffc107; margin-bottom: 10px;">🏆 BINGO! 🏆</h2>
-                <p id="winner-announcement-text" style="font-size: 15px; color: #fff; margin-bottom: 15px; line-height: 1.5;"></p>
+                <p id="winner-announcement-text" style="font-size: 14px; color: #fff; margin-bottom: 15px; line-height: 1.5;"></p>
                 <div class="card-container" style="margin-bottom: 15px;">
                     <div class="bingo-header">
                         <span class="b-circle b-purple">B</span>
@@ -205,19 +203,32 @@
             </div>
         </div>
 
-        <!-- Wallet Modal -->
+        <!-- Cleaned Wallet Modal -->
         <div id="walletModal" class="modal">
-            <div class="modal-content">
-                <h3 style="color: #ffc107;">የዋሌት አስተዳደር (Wallet)</h3>
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px; text-align: left;">
+            <div class="modal-content" style="max-width: 400px;">
+                <h3 style="color: #ffc107; margin-bottom: 10px;">የዋሌት አስተዳደር (Wallet)</h3>
+                
+                <!-- Balance Overview Cards (ምስሉ ላይ እንዳሉት) -->
+                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <div style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; flex: 1; text-align: left;">
+                        <div style="font-size: 10px; color: #aaa;">PAYABLE BALANCE</div>
+                        <div style="font-size: 15px; font-weight: bold; color: #ffc107;" id="wallet-payable-bal">ETB 500.00</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; flex: 1; text-align: left;">
+                        <div style="font-size: 10px; color: #aaa;">BONUS BALANCE</div>
+                        <div style="font-size: 15px; font-weight: bold; color: #2ecc71;">ETB 0.00</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px; text-align: left;">
                     <label style="font-size: 13px; color: #ddd;">እርምጃ ይምረጡ:</label>
                     <select id="wallet-action-type" onchange="toggleWalletFields()" style="width:100%; padding:10px; border-radius:6px; border:1px solid #444; background:#170424; color:#fff;">
                         <option value="deposit">ብር ማስገባት (Deposit)</option>
                         <option value="withdraw">ብር ማውጣት (Withdraw - የራስዎ አካውንት)</option>
                     </select>
 
-                    <div id="deposit-notice" style="font-size: 12px; color: #ffc107; background: rgba(255,193,7,0.1); padding: 8px; border-radius: 4px; line-height: 1.4;">
-                        💳 ብር ለማስገባት በቴሌብር ቁጥር፡<br><b style="color:#fff; font-size:13px;">0986864455 (ጌታነህ ወንዳፍራሽ)</b> ይጠቀሙ!
+                    <div id="deposit-notice" style="font-size: 12px; color: #ffc107; background: rgba(255,193,7,0.1); padding: 10px; border-radius: 6px; line-height: 1.5;">
+                        💳 ብር ለማስገባት በቴሌብር ቁጥር፡<br><b style="color:#fff; font-size:14px;">0986864455 (ጌታነህ ወንዳፍራሽ)</b> ብቻ ይጠቀሙ!
                     </div>
 
                     <label style="font-size: 13px; color: #ddd;">የብር መጠን (ETB):</label>
@@ -275,12 +286,12 @@
         let previewCartelaId = null;
         let drawnNumbersSet = new Set();
         let mySelectedCards = {}; 
-        let otherTakenCards = {}; // ခြား ተጫዋቾች የያዟቸው ካርቴላዎች
+        let otherTakenCards = {}; 
         let isGameStarted = false;
         let userBalance = 500.00;
         let countdownTimer = null;
         let drawInterval = null;
-        let secondsLeft = 48; // የተጠየቀው የ48 ሰከንድ ቆይታ
+        let secondsLeft = 48;
 
         function openRoom(stake) {
             selectedStake = stake;
@@ -300,7 +311,6 @@
             document.getElementById('my-active-cards-container').innerHTML = '';
             document.getElementById('last-drawn-number').innerText = '';
             
-            // በዘፈቀደ ሌሎች ተጫዋቾች የተወሰኑ ካርቴላዎችን አስቀድመው እንዲይዙ ማድረግ (ቀለማቸውን ለመለየት)
             let randomOtherCount = Math.floor(Math.random() * 30) + 20;
             for(let i = 0; i < randomOtherCount; i++) {
                 let randomCardId = Math.floor(Math.random() * 400) + 1;
@@ -345,7 +355,6 @@
         }
 
         function checkWinCondition() {
-            // ከያዟቸው ካርቴላዎች አንዱ ቢንጎ ከፈጠረ
             for (let cardId in mySelectedCards) {
                 if (checkCardIsBingo(mySelectedCards[cardId])) {
                     clearInterval(drawInterval);
@@ -353,7 +362,6 @@
                     break;
                 }
             }
-            // ካልሆነ በዘፈቀደ በሌላ ተጫዋች ካርቴላ ቢንጎ እንዲዘጋ ማድረግ (ለማሳየት)
             if (Math.random() < 0.05 && drawnNumbersSet.size > 15) {
                 clearInterval(drawInterval);
                 let fakeCardId = 55;
@@ -367,26 +375,24 @@
             cardNumbers.forEach(val => {
                 if(val === 'F' || drawnNumbersSet.has(val)) matches++;
             });
-            return matches >= 12; // ቀላል የማሸነፊያ መስፈርት
+            return matches >= 12;
         }
 
         function triggerBingoWin(cardId, cardNumbers, winnerName) {
             isGameStarted = true;
-            let totalPool = selectedStake * 400; // አጠቃላይ ገቢ
-            let commission = totalPool * 0.30; // 30% ለጌታነህ ወንዳፍራሽ (0986864455)
-            let userPrize = totalPool * 0.70; // 70% ለድል አድራጊው ዋሌት
+            let totalPool = selectedStake * 400; 
+            let commission = totalPool * 0.30; 
+            let userPrize = totalPool * 0.70; 
 
             if (winnerName.includes("እርስዎ")) {
                 userBalance += userPrize;
                 document.getElementById('user-wallet-balance').innerText = userBalance.toFixed(2);
+                document.getElementById('wallet-payable-bal').innerText = `ETB ${userBalance.toFixed(2)}`;
             }
 
-            // የድል ማስታወሻ መግለጫ ማዘጋጀት
-            let announcement = `አሸናፊ: ${winnerName}!\nካርቴላ ቁጥር: ${cardId}\n\n• 70% ድል ($ {userPrize.toFixed(2)} Birr) ወደ አሸናፊው ዋሌት ገብቷል!\n• 30% ኮሚሽን ($ {commission.toFixed(2)} Birr) ወደ አካውንት 0986864455 ተላልፏል!`;
-            document.getElementById('winner-announcement-textinnerText') = announcement;
+            let announcement = `አሸናፊ: ${winnerName}!\nካርቴላ ቁጥር: ${cardId}\n\n• 70% ድል (${userPrize.toFixed(2)} Birr) ወደ አሸናፊው ዋሌት ገብቷል!\n• 30% ኮሚሽን (${commission.toFixed(2)} Birr) ወደ አካውንት 0986864455 ተላልፏል!`;
             document.getElementById('winner-announcement-text').innerText = announcement;
 
-            // ሞዳሉ ላይ የካርቴላውን ገፅታ ማሳየት
             let grid = document.getElementById('winner-modal-grid');
             grid.innerHTML = '';
             cardNumbers.forEach(val => {
@@ -407,7 +413,7 @@
         function closeWinnerModalAndRestart() {
             document.getElementById('winnerModal').style.display = 'none';
             resetRoomState();
-            startCountdown(); // ጨዋታው ሲያልቅ ወደ 48 ሰከንድ ቆጣሪ መመለስ
+            startCountdown();
         }
 
         function closeModal(modalId) {
@@ -424,7 +430,7 @@
                 btn.innerText = i;
 
                 if (otherTakenCards[i]) {
-                    btn.classList.add('taken-by-other'); // ሌሎች ተጫዋቾች የያዙት ቀለም
+                    btn.classList.add('taken-by-other');
                     btn.title = "በሌላ ተጫዋች የተያዘ";
                 }
 
@@ -582,6 +588,7 @@
                 alert(`የብር ማውጣት ጥያቄዎ በተሳካ ሁኔታ ወደ ራስዎ አካውንት (${account}) ተልኳል!`);
             }
             document.getElementById('user-wallet-balance').innerText = userBalance.toFixed(2);
+            document.getElementById('wallet-payable-bal').innerText = `ETB ${userBalance.toFixed(2)}`;
             closeModal('walletModal');
         }
     </script>
