@@ -226,7 +226,7 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         except asyncio.CancelledError:
             pass
 
-    # ክፍሉን ለአዲስ ጨዋታ ማስተካከል እና ለተጫዋቾች ማሳወቅ (የተስተካከለ)
+    # 💡 [የተስተካከለ] ክፍሉን ለአዲስ ጨዋታ ሙሉ በሙሉ ባዶ ማድረግ (Reset)
     async def reset_room_async(self):
         if self.room_name in ROOMS:
             if ROOMS[self.room_name]['task']:
@@ -234,7 +234,7 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
             if ROOMS[self.room_name]['draw_task']:
                 ROOMS[self.room_name]['draw_task'].cancel()
 
-            # ውሂቡን ሙሉ በሙሉ ባዶ ማድረግ (ተጫዋቾች እና የተሳሉ ቁጥሮች ይሰረዛሉ)
+            # ውሂቡን ሙሉ በሙሉ ባዶ ማድረግ
             ROOMS[self.room_name] = {
                 'status': 'WAITING',
                 'players': {},
@@ -243,12 +243,15 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
                 'draw_task': None
             }
 
-            # ለሁሉም ተጫዋቾች ሰሌዳው ሙሉ በሙሉ እንደተጸዳ (Reset) ማሳወቂያ መላክ
+            # 💡 ለሁሉም ተጫዋቾች ገንዘቡ (Pot) እና የተያዙ ካርቴላዎች (Players) ዜሮ መሆናቸውን በመላክ UI እንዲጸዳ ይደረጋል
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'room_reset',
                     'players': {},
+                    'total_pot': 0,
+                    'winner_pot': 0,
+                    'commission': 0,
                     'drawn_numbers': []
                 }
             )
@@ -291,5 +294,8 @@ class BingoRoomConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'room_reset',
             'players': event['players'],
+            'total_pot': event['total_pot'],
+            'winner_pot': event['winner_pot'],
+            'commission': event['commission'],
             'drawn_numbers': event['drawn_numbers']
         }))
